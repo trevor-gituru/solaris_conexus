@@ -47,11 +47,15 @@ export default function RegisterForm() {
 
     if (Object.keys(validationErrors).length === 0) {
       try {
-        const res = await fetch('/api/register', {
+        // Exclude confirmPassword before sending to backend
+        const { username, email, password } = formData;
+        const payload = { username, email, password };
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        });
+          body: JSON.stringify(payload),
+      });
 
         const result = await res.json();
 
