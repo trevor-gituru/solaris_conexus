@@ -2,7 +2,6 @@ from auth.routes import router as auth_router
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 import os
 
 # Load environment variables from .env file
@@ -21,11 +20,6 @@ app.add_middleware(
     allow_headers=["*"],  # Accept all headers
 )
 
-from db.database import engine, Base
-from db.models import User
-
-# Create tables
-Base.metadata.create_all(bind=engine)
 
 app.include_router(auth_router)
 

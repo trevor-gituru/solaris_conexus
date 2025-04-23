@@ -71,6 +71,7 @@ $ alembic revision --autogenerate -m "Initial"
     + Install `pydantic[email]` dependecy handle email validation
 - Create `hash_passwd` utils function:
     + Use `passlib[bcrypt]` dependecy to hash
+- Create the `User` model in `database`  package with same fields as `RegForm`
 - Create `register_user` async fn in routes:
     + Post route `/register`
     + Takes reg form data
