@@ -75,3 +75,50 @@ $ alembic revision --autogenerate -m "Initial"
 - Create `register_user` async fn in routes:
     + Post route `/register`
     + Takes reg form data
+
+## Register User Feature
+
+**Commit Summary:**  
+Added user registration functionality including database model, user creation logic, and password hashing.
+
+**Details:**
+
+- **User Model** (`db/models.py`)  
+  Created a `User` model with fields: `id`, `username`, `email`, and `hashed_password`. Applied constraints for uniqueness and non-nullability.
+
+- **Password Hashing** (`auth/utils.py`)  
+  Added a `hash_password()` function using `bcrypt` to securely hash passwords before storing them in the database.
+
+- **User Creation Method** (`db/crud.py` or `db/utils.py`)  
+  Defined `create_user(db, request)` to create and save new users using the Pydantic `RegisterRequest` model.
+
+- **Registration Endpoint** (`auth/routes.py`)  
+  Created a `/register` route that:
+  - Validates username/email uniqueness
+  - Hashes the password
+  - Saves the user to the database
+  - Returns a success message to the frontend
+
+- **Tested Registration**  
+  Tested using `curl` to ensure successful registration and duplicate-checking.
+# docker
+```
+sudo apt update
+sudo apt install ca-certificates curl gnupg lsb-release -y
+
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+  sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update
+sudo apt install docker-ce docker-ce-cli containerd.io -y
+sudo service docker start
+sudo docker pull shardlabs/starknet-devnet-rs
+echo "alias starknet-devnet='docker run --network host shardlabs/starknet-devnet-rs'" >> ~/.bashrc
+source ~/.bashrc
+```
