@@ -36,15 +36,4 @@ async def login_user(request: LoginRequest, db: Session = Depends(get_db)):
 
     return {"access_token": access_token, "token_type": "bearer"}    
 
-from fastapi import Header
-
-@router.get("/test")
-def test_jwt(Authorization: str = Header(...)):
-    if not Authorization.startswith("Bearer "):
-        raise HTTPException(status_code=400, detail="Invalid auth header format")
-
-    token = Authorization.split(" ")[1]
-    user_data = decode_token(token)
-    return {"user": user_data}
-
 

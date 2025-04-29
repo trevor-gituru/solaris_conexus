@@ -101,6 +101,16 @@ Added user registration functionality including database model, user creation lo
 
 - **Tested Registration**  
   Tested using `curl` to ensure successful registration and duplicate-checking.
+### JWT-Based Login Functionality
+
+- Developed `LoginRequest` and `LoginResponse` models to define structure for login input and response.
+- Created `/login` route to authenticate users using email and password.
+- Added utility functions `create_token` and `decode_token` using `python-jose` to manage JWT tokens.
+- Passwords are securely verified using `passlib.hash.bcrypt`.
+- Implemented `/test` route that extracts and decodes JWT tokens from the `Authorization` header to validate user authentication.
+- Installed required libraries: `passlib`, `bcrypt`, `python-jose`.
+
+
 # docker
 ```
 sudo apt update
