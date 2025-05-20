@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import Sidebar from '../../../../components/Sidebar';
+import ConnectWallet from '../../../../components/ConnectWallet';
 import useAuth from '../../../../hooks/useAuth';
+
 
 const Profile = () => {
   useAuth();
@@ -14,6 +16,7 @@ const Profile = () => {
     dob: '',
     gender: '',
     phoneNumber: '',
+    accountAddress: '', // New field
   });
   const [emailConfirmed, setEmailConfirmed] = useState(false);
   const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
@@ -121,6 +124,7 @@ const Profile = () => {
     dob: formData.dob,
     gender: formData.gender,
     phone: formData.phoneNumber || null, // Optional field, so set it to null if not provided
+    account_address: formData.accountAddress || null, // Include the manually entered wallet address
   };
 
   try {
@@ -132,7 +136,7 @@ const Profile = () => {
       },
       body: JSON.stringify(profileData), // Send the profile data to the backend
     });
-
+    console.log(JSON.stringify(profileData))
     const data = await response.json();
 
     if (response.ok) {
@@ -230,9 +234,23 @@ const Profile = () => {
                 value={formData.phoneNumber}
                 onChange={handleInputChange}
                 className="w-full border border-gray-300 px-3 py-2 rounded"
-                placeholder="(123) 456-7890"
+                placeholder="0723456789"
               />
             </div>
+	    {/* Account Address */}
+	    <div>
+		<label className="block mb-1 text-sm font-semibold">Account Address</label>
+		<input
+			name="accountAddress"
+		    	value={formData.accountAddress}
+		    	onChange={handleInputChange}
+		    	className="w-full border border-gray-300 px-3 py-2 rounded"
+		    	placeholder="0xABC123..."
+		  />
+	   </div>
+	   <div className="flex items-center space-x-4">
+	  	  <ConnectWallet />
+	   </div>
 
             {/* Confirm Email */}
             <div className="flex items-center space-x-4">

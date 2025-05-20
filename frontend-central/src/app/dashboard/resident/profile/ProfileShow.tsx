@@ -13,7 +13,7 @@ interface ProfileShowProps {
     dob: string;
     gender: string;
     phone: string;
-    wallet_address: string | null;
+    account_address: string | null;
   };
 }
 
@@ -70,11 +70,11 @@ const ProfileShow: React.FC<ProfileShowProps> = ({ profileData }) => {
                 <p className="font-medium text-gray-700">Wallet Address</p>
                 <div className="flex items-center space-x-2 overflow-x-auto bg-gray-100 p-2 rounded-md">
                   <p className="text-gray-500 break-all text-sm">
-                    {profileData.wallet_address ? profileData.wallet_address : 'No wallet assigned yet'}
+                    {profileData.account_address ? profileData.account_address : 'No wallet assigned yet'}
                   </p>
-                  {profileData.wallet_address && (
+                  {profileData.account_address && (
                     <button
-                      onClick={() => copyToClipboard(profileData.wallet_address!)}
+                      onClick={() => copyToClipboard(profileData.account_address!)}
                       className="text-gray-400 hover:text-gray-600"
                       title="Copy wallet address"
                     >

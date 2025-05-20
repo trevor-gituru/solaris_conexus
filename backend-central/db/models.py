@@ -1,13 +1,14 @@
 # db/models.py
 # This file defines the SQLAlchemy models for the database tables.
 # It includes the User model and a function to create a new user.
-from sqlalchemy import Column, Integer, String, ForeignKey, Date, JSON
+from sqlalchemy import Column, Integer, String, ForeignKey, Date, JSON, Numeric, DateTime
 from sqlalchemy.orm import relationship, Session
 from db.database import Base
 from auth.utils import hash_password
 from auth.models import RegisterRequest
 from datetime import datetime
 from datetime import date
+import secrets
 
 # User Model
 class User(Base):
@@ -26,6 +27,14 @@ class User(Base):
 
     wallets = relationship("Wallet", back_populates="user", cascade="all, delete-orphan")
 
+    # Inside your User model
+    purchases = relationship("TokenPurchase", back_populates="user", cascade="all, delete-orphan")
+
+    # In User model
+    trade_requests = relationship("TradeRequest", foreign_keys='TradeRequest.user_id', back_populates="user")
+
+
+
 
 # Profile Model
 class Profile(Base):
@@ -37,6 +46,8 @@ class Profile(Base):
     dob = Column(Date, nullable=False)  # Store as a Date type now
     gender = Column(String(10), nullable=False)
     phone = Column(String(15), nullable=True)  # Optional phone number field
+    account_address = Column(String(66), unique=True, nullable=False)
+
 
     # Foreign key to link to the User model
     user_id = Column(Integer, ForeignKey("users.id"))
@@ -53,6 +64,7 @@ class Profile(Base):
             "dob": self.dob.isoformat() if isinstance(self.dob, date) else self.dob,  # Convert date to ISO format string
             "gender": self.gender,
             "phone": self.phone,
+            "account_address": self.account_address,
         }
 
 
@@ -83,6 +95,7 @@ def create_profile(db: Session, profile_data: dict):
         dob=profile_data["dob"],  # Expecting dob as a Date object
         gender=profile_data["gender"],
         phone=profile_data.get("phone", None),  # Optional phone number field
+        account_address=profile_data.get("account_address", None),  # Optional phone number field
         user_id=user.id
     )
     db.add(db_profile)
@@ -99,7 +112,7 @@ class Device(Base):
     device_type = Column(String(50), nullable=False)  # e.g., 'Arduino', 'Raspberry Pi', etc.
     device_id = Column(String(50), nullable=False, unique=True)  # Unique identifier for each device
     connection_type = Column(String(50), nullable=False)  # e.g., 'wired', 'wireless'
-    estate = Column(String(100), nullable=True)  # The estate where the device is located (optional)
+    estate = Column(String(100), ForeignKey("hubs.name"), nullable=True)  # The estate where the device is located (optional)
     status = Column(String(50), nullable=True)  # e.g., 'active', 'inactive'
     pin_loads = Column(JSON, nullable=True)  # JSON array to store pin numbers and loads
     created_at = Column(Date, default=datetime.utcnow)  # Timestamp of device creation
@@ -108,6 +121,8 @@ class Device(Base):
     
     # Relationship with the User model
     user = relationship("User", back_populates="devices")
+
+    hub = relationship("Hub", back_populates="devices")
 
     # Add a method to convert the object to a dictionary
     def to_dict(self):
@@ -176,5 +191,97 @@ def assign_wallet_to_user(db: Session, user_id: int):
     print(f"Assigned wallet {unassigned_wallet.account_address} to user {user_id}")
     return unassigned_wallet
 
+class TokenPurchase(Base):
+    __tablename__ = "token_purchases"
 
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    date = Column(DateTime, default=datetime.utcnow)
+    tx_hash = Column(String(255), unique=True, nullable=False)
+    amount_stc = Column(Numeric(precision=18, scale=8), nullable=False)
+    strk_used = Column(Numeric(precision=18, scale=8), nullable=False)
+
+    # Relationship back to user
+    user = relationship("User", back_populates="purchases")
+
+def create_token_purchase(db: Session, purchase_data: dict, user_id: int):
+    db_purchase = TokenPurchase(
+        user_id=user_id,
+        tx_hash=purchase_data["tx_hash"],
+        amount_stc=purchase_data["amount_stc"],
+        strk_used=purchase_data["strk_used"],
+        date=purchase_data.get("date")  # Optional; defaults to utcnow if not provided
+    )
+
+    db.add(db_purchase)
+    db.commit()
+    db.refresh(db_purchase)
+    return db_purchase
+
+
+class TradeRequest(Base):
+    __tablename__ = "trade_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # initiator of the trade
+    buyer_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # person who accepts trade
+
+    stc_offered = Column(Numeric(precision=18, scale=8), nullable=False)
+    strk_price = Column(Numeric(precision=18, scale=8), nullable=False)
+    tx_hash = Column(String(255), unique=True, nullable=True)
+    
+    status = Column(String(50), default="pending")
+    date = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id], back_populates="trade_requests")
+    buyer = relationship("User", foreign_keys=[buyer_id])
+
+def create_trade_request(db: Session, trade_data: dict, user_id: int):
+    db_trade = TradeRequest(
+        user_id=user_id,
+        stc_offered=trade_data["stc_offered"],
+        strk_price=trade_data["strk_price"],
+        tx_hash=trade_data.get("tx_hash"),  # optional at creation
+        status=trade_data.get("status", "pending"),
+        date=trade_data.get("date")  # optional
+    )
+
+    db.add(db_trade)
+    db.commit()
+    db.refresh(db_trade)
+    return db_trade
+
+
+
+class Hub(Base):
+    __tablename__ = "hubs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    
+    name = Column(String(100), unique=True, nullable=False)
+    api_key = Column(String(64), unique=True, nullable=False, index=True)
+    registered_at = Column(DateTime, default=datetime.utcnow)
+    last_active = Column(DateTime, nullable=True)
+
+    devices = relationship("Device", back_populates="hub")
+
+    @classmethod
+    def create(cls, db: Session, name: str):
+        """Creates a new hub with a secure API key."""
+        api_key = secrets.token_hex(32)  # 64-character secure key
+
+        hub = cls(
+            name=name,
+            api_key=api_key,
+            registered_at=datetime.utcnow(),
+            last_active=None
+        )
+        db.add(hub)
+        db.commit()
+        db.refresh(hub)
+        
+        return hub
 

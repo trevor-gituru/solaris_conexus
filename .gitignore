@@ -1,0 +1,71 @@
+# Global
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.bak
+
+# Python (FastAPI backend)
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+*.venv/
+env/
+venv/
+*.sqlite3
+instance/
+*.log
+.mypy_cache/
+.pytest_cache/
+coverage.*
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# VSCode
+.vscode/
+
+# Node.js (Next.js frontend)
+node_modules/
+.next/
+out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Cairo (solaris_conexus_token)
+*.json
+*.sierra
+*.casm
+target/
+cairo_output/
+
+# Arduino
+*.hex
+*.elf
+*.bin
+*.ino.*
+*.bak
+*.d
+*.o
+*.eep
+*.dep
+*.map
+
+# Project-specific
+*.db
+*.sqlite
+*.pid
+logs/
+__pypackages__/
+.idea/
+*.iml
+

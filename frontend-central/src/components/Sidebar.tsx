@@ -37,12 +37,12 @@ const Sidebar = () => {
             <DevicePhoneMobileIcon className="h-6 w-6" />
             <span>My Devices</span>
           </Link>
-          <Link href="/transaction-history" className="flex items-center space-x-2 hover:bg-gray-700 p-2 rounded-md">
+          <Link href="/dashboard/resident/trade" className="flex items-center space-x-2 hover:bg-gray-700 p-2 rounded-md">
             <ArchiveBoxIcon className="h-6 w-6" />
-            <span>Transaction History</span>
+            <span>Trade Tokens</span>
           </Link>
           
-          <Link href="/purchase-tokens" className="flex items-center space-x-2 hover:bg-gray-700 p-2 rounded-md">
+          <Link href="/dashboard/resident/buy-tokens" className="flex items-center space-x-2 hover:bg-gray-700 p-2 rounded-md">
             <CreditCardIcon className="h-6 w-6" />
             <span>Purchase Tokens</span>
           </Link>
@@ -84,11 +84,11 @@ const Sidebar = () => {
             <DevicePhoneMobileIcon className="h-6 w-6" />
             <span>My Devices</span>
           </Link>
-          <Link href="/transaction-history" className="flex items-center space-x-2 hover:bg-gray-700 p-2 rounded-md">
+          <Link href="/dashboard/resident/trade" className="flex items-center space-x-2 hover:bg-gray-700 p-2 rounded-md">
             <ArchiveBoxIcon className="h-6 w-6" />
-            <span>Transaction History</span>
+            <span>Trade Tokens</span>
           </Link>
-          <Link href="/purchase-tokens" className="flex items-center space-x-2 hover:bg-gray-700 p-2 rounded-md">
+          <Link href="/dashboard/resident/buy-tokens" className="flex items-center space-x-2 hover:bg-gray-700 p-2 rounded-md">
             <CreditCardIcon className="h-6 w-6" />
             <span>Purchase Tokens</span>
           </Link>

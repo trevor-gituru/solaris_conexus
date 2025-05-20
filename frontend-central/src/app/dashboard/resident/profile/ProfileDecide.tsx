@@ -13,7 +13,7 @@ interface ProfileData {
   dob: string;
   gender: string;
   phone: string;
-  wallet_address: string | null; // <-- Add this
+  account_address: string | null; // <-- Add this
 }
 
 const ProfileDecide = () => {
@@ -58,7 +58,10 @@ const ProfileDecide = () => {
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
 
-  return profileData ? <ProfileShow profileData={profileData} /> : <Profile />;
+  return profileData && profileData.first_name
+  ? <ProfileShow profileData={profileData} />
+  : <Profile />;
+
 };
 
 export default ProfileDecide;

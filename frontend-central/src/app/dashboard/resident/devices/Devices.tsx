@@ -2,8 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../../../../components/Sidebar';
+import Monitor from './Monitor';
 import useAuth from '../../../../hooks/useAuth';
 import { useRouter } from 'next/navigation';
+
+interface PinLoad {
+  pin: string;
+  load: string;
+}
 
 interface Device {
   id: number;
@@ -12,35 +18,37 @@ interface Device {
   connection_type: string;
   estate: string | null;
   status: string | null;
-  pin_loads: Array<{ pin: string; load: string }>;
+  pin_loads: PinLoad[];
   created_at: string;
 }
 
 export default function Devices() {
   useAuth();
   const router = useRouter();
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState<string>('');
   const [showAddDeviceForm, setShowAddDeviceForm] = useState(false);
+  const [togglingDeviceId, setTogglingDeviceId] = useState<number | null>(null);
+  const [showMonitorDeviceId, setShowMonitorDeviceId] = useState<number | null>(null);
+
   const [deviceForm, setDeviceForm] = useState({
     device_type: '',
     device_id: '',
     connection_type: '',
-    estate: 'juja',  // Hardcoded to "juja"
+    estate: 'juja',
     pin_loads: [{ pin: '', load: '' }],
   });
 
-  // Fetch existing devices
+  // Fetch devices
   useEffect(() => {
     const fetchDevices = async () => {
       const token = localStorage.getItem('token');
       try {
         const res = await fetch(`${API_URL}/get_devices`, {
-          method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -58,30 +66,25 @@ export default function Devices() {
     fetchDevices();
   }, [API_URL]);
 
-  // Handle form inputs for pin_loads
+  // Handlers for Create Device form
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
     const { name, value } = e.target;
     const updated = [...deviceForm.pin_loads];
     updated[idx] = { ...updated[idx], [name]: value };
     setDeviceForm({ ...deviceForm, pin_loads: updated });
   };
-
   const handleAddPinLoad = () => {
-    setDeviceForm(prev => ({ 
-      ...prev, 
-      pin_loads: [...prev.pin_loads, { pin: '', load: '' }] 
+    setDeviceForm(prev => ({
+      ...prev,
+      pin_loads: [...prev.pin_loads, { pin: '', load: '' }],
     }));
   };
-
   const handleSubmit = async () => {
-    // Check if any field in the deviceForm is empty
-    console.log("About to submit:", deviceForm);
     const { device_type, device_id, connection_type, estate, pin_loads } = deviceForm;
-    if (!device_type || !device_id || !connection_type || !estate || !pin_loads?.length) {
-      setError("All fields must be filled out");
+    if (!device_type || !device_id || !connection_type || !estate || !pin_loads.length) {
+      setError('All fields must be filled out');
       return;
     }
-  
     const token = localStorage.getItem('token');
     try {
       const res = await fetch(`${API_URL}/create_device`, {
@@ -92,22 +95,40 @@ export default function Devices() {
         },
         body: JSON.stringify(deviceForm),
       });
-  
       const data = await res.json();
-  
       if (!res.ok) throw new Error(data.detail || 'Failed to create device');
-  
-      // Show success message
-      setSuccessMessage("Device created successfully!");
-  
-      // After the success message disappears, refresh the page
+      setSuccessMessage('Device created successfully!');
       setTimeout(() => {
         setSuccessMessage('');
         window.location.reload();
-      }, 2000); // Delay before page refresh to show the success message
-  
+      }, 2000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+    }
+  };
+
+  // Toggle device
+  const toggleDevice = async (deviceId: number) => {
+    const token = localStorage.getItem('token');
+    setTogglingDeviceId(deviceId);
+    try {
+      const res = await fetch(`${API_URL}/toggle_device?device_id=${deviceId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || 'Failed to toggle device');
+      }
+      const data = await res.json();
+      alert(data.message || `Device ${deviceId} toggled`);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Toggle error');
+    } finally {
+      setTogglingDeviceId(null);
     }
   };
 
@@ -147,17 +168,15 @@ export default function Devices() {
             <div className="relative bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
               <h2 className="text-2xl font-semibold text-gray-800 mb-4">Add New Device</h2>
 
-              {/* Error and Success Messages */}
               {error && <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-4">{error}</div>}
               {successMessage && <div className="bg-green-100 text-green-700 p-4 rounded-lg mb-4">{successMessage}</div>}
 
               <div className="space-y-4">
-                {/* Device Type */}
                 <div>
                   <span className="font-medium text-gray-600">Device Type:</span>
                   <select
                     value={deviceForm.device_type}
-                    onChange={(e) => setDeviceForm({ ...deviceForm, device_type: e.target.value })}
+                    onChange={e => setDeviceForm({ ...deviceForm, device_type: e.target.value })}
                     className="border p-2 w-full rounded-md"
                   >
                     <option value="">Select Device Type</option>
@@ -168,21 +187,19 @@ export default function Devices() {
                   </select>
                 </div>
 
-                {/* Device ID */}
                 <input
                   type="text"
                   placeholder="Device ID"
                   value={deviceForm.device_id}
-                  onChange={(e) => setDeviceForm({ ...deviceForm, device_id: e.target.value })}
+                  onChange={e => setDeviceForm({ ...deviceForm, device_id: e.target.value })}
                   className="border p-2 w-full rounded-md"
                 />
 
-                {/* Connection Type */}
                 <div>
                   <span className="font-medium text-gray-600">Connection Type:</span>
                   <select
                     value={deviceForm.connection_type}
-                    onChange={(e) => setDeviceForm({ ...deviceForm, connection_type: e.target.value })}
+                    onChange={e => setDeviceForm({ ...deviceForm, connection_type: e.target.value })}
                     className="border p-2 w-full rounded-md"
                   >
                     <option value="">Select Connection Type</option>
@@ -191,7 +208,6 @@ export default function Devices() {
                   </select>
                 </div>
 
-                {/* Estate (hardcoded to Juja) */}
                 <div>
                   <span className="font-medium text-gray-600">Estate:</span>
                   <input
@@ -202,7 +218,6 @@ export default function Devices() {
                   />
                 </div>
 
-                {/* Pin Loads */}
                 <div>
                   <span className="font-medium">Pin Loads</span>
                   {deviceForm.pin_loads.map((pl, idx) => (
@@ -261,7 +276,7 @@ export default function Devices() {
                   className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow max-w-sm"
                 >
                   <h2 className="text-xl font-semibold text-gray-800 mb-2">{device.device_id}</h2>
-                  
+
                   <div className="mb-3">
                     <span className="font-medium text-gray-600">Device Type:</span>
                     <span className="text-gray-800">{device.device_type}</span>
@@ -297,12 +312,49 @@ export default function Devices() {
                   <p className="text-sm text-gray-500 mt-4">
                     Registered: {new Date(device.created_at).toLocaleString()}
                   </p>
+
+                  <div className="flex space-x-2 mt-4">
+                    <button
+		    disabled={device.status !== 'active'}
+                      onClick={() => toggleDevice(device.id)}
+                      className={`
+                        px-4 py-2 rounded 
+                        ${device.status === 'active' 
+        ? 'bg-blue-600 text-white hover:bg-blue-700' 
+        : 'bg-gray-300 text-gray-600 cursor-not-allowed'}'} 
+                        text-white transition
+                      `}
+                    >
+                      {togglingDeviceId === device.id ? 'Toggling...' : 'Toggle Device'}
+                    </button>
+                    <button
+		    disabled={device.status !== 'active'}
+                      onClick={() => setShowMonitorDeviceId(device.id)}
+                      className={`px-4 py-2 rounded w-full transition 
+      ${device.status === 'active' 
+        ? 'bg-green-600 text-white hover:bg-green-700' 
+        : 'bg-gray-300 text-gray-600 cursor-not-allowed'}
+    `}                    >
+                      Monitor
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Monitor Modal */}
+        {showMonitorDeviceId !== null && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <Monitor
+              deviceId={showMonitorDeviceId}
+              onClose={() => setShowMonitorDeviceId(null)}
+            />
           </div>
         )}
       </div>
     </div>
   );
 }
+

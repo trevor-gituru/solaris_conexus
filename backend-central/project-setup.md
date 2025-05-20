@@ -132,3 +132,10 @@ sudo docker pull shardlabs/starknet-devnet-rs
 echo "alias starknet-devnet='docker run --network host shardlabs/starknet-devnet-rs'" >> ~/.bashrc
 source ~/.bashrc
 ```
+
+# Hubs
+- `Hub` table
+- `routes` with `hubs`  prefix
+- `create` route new Hub
+- `get` route fetch HUb based on name & devices created under its name
+

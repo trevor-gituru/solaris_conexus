@@ -1,5 +1,7 @@
 from auth.routes import router as auth_router
 from dashboard.routes import router as dashboard_router
+from hubs.routes import router as hub_router
+# from dashboard.eth import router as eth_router
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +26,8 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(dashboard_router)
+app.include_router(hub_router, prefix="/hubs")   # all hub_router routes start with /hubs
+# app.include_router(eth_router, prefix="/eth", tags=["power-token"])
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,6 +1,6 @@
+// PowerChart.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
 import {
   LineChart,
   Line,
@@ -16,36 +16,22 @@ interface DataPoint {
   power: number;
 }
 
-export default function PowerChart() {
-  const [data, setData] = useState<DataPoint[]>([]);
+interface PowerChartProps {
+  data: DataPoint[];
+}
 
-  useEffect(() => {
-    const es = new EventSource(`${process.env.NEXT_PUBLIC_API_URL}/stream_power`);
-
-    es.onmessage = (event) => {
-      const now = new Date().toLocaleTimeString();
-      const power = parseFloat(event.data);
-
-      setData((prev) => {
-        const next = [...prev, { timestamp: now, power }];
-        // keep only last 20 points
-        return next.length > 20 ? next.slice(next.length - 20) : next;
-      });
-    };
-
-    return () => {
-      es.close();
-    };
-  }, []);
-
+export default function PowerChart({ data }: PowerChartProps) {
   return (
     <div className="w-full h-80 bg-white p-4 rounded shadow">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="timestamp" minTickGap={20} />
-          <YAxis unit=" W" />
-          <Tooltip formatter={(value: number) => `${value.toFixed(4)} W`} />
+          <YAxis unit=" W" domain={['auto', 'auto']} />
+          <Tooltip
+            formatter={(value: number) => `${value.toFixed(4)} W`}
+            labelFormatter={(label) => `Time: ${label}`}
+          />
           <Line
             type="monotone"
             dataKey="power"
@@ -53,9 +39,11 @@ export default function PowerChart() {
             strokeWidth={2}
             isAnimationActive={false}
             dot={false}
+            connectNulls
           />
         </LineChart>
       </ResponsiveContainer>
     </div>
   );
 }
+
