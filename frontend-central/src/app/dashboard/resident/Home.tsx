@@ -29,7 +29,7 @@ const Home = () => {
             'Authorization': token ? `Bearer ${token}` : '', // Add JWT token here if exists
           },
         });
-
+	
         if (!res.ok) throw new Error('Failed to fetch user details');
         const data = await res.json();
         setUserData(data);
