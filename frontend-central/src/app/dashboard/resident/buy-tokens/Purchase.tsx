@@ -121,7 +121,6 @@ const handleBuyStrk = async () => {
 
     const contract = await getContract();
     contract.connect(account);
-
     const strk_used = parseFloat(amount) / 1000;
     const uintAmount = cairo.uint256(strk_used * 10 ** 18);
     const TO_ADDRESS = process.env.NEXT_PUBLIC_STC_ADDRESS!;
@@ -129,7 +128,7 @@ const handleBuyStrk = async () => {
       recipient: TO_ADDRESS,
       amount: uintAmount,
     });
-
+    console.log(strk_used, unitAmount, TO_ADDRESS)
     const { transaction_hash } = await account.execute(call);
     setTxHash(transaction_hash);
 
