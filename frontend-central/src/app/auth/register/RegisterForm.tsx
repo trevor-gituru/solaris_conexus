@@ -1,10 +1,13 @@
+// app/auth/register/RegisterForm.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // ✅ for App Router
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/providers/ToastProvider';
 
 export default function RegisterForm() {
   const router = useRouter();
+  const { showToast } = useToast();
 
   const [formData, setFormData] = useState({
     username: '',
@@ -15,8 +18,6 @@ export default function RegisterForm() {
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [showPassword, setShowPassword] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [showToast, setShowToast] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -26,8 +27,7 @@ export default function RegisterForm() {
     const newErrors: { [key: string]: string } = {};
 
     if (!/^[a-zA-Z0-9_]{3,}$/.test(formData.username)) {
-      newErrors.username =
-        'Username must be at least 3 characters and contain only letters, numbers, or underscores.';
+      newErrors.username = 'Username must be at least 3 characters and contain only letters, numbers, or underscores.';
     }
 
     if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -45,62 +45,47 @@ export default function RegisterForm() {
     return newErrors;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const validationErrors = validate();
-    setErrors(validationErrors);
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    if (Object.keys(validationErrors).length === 0) {
-      try {
-        const { username, email, password } = formData;
-        const payload = { username, email, password };
+  const validationErrors = validate();
+  setErrors(validationErrors);
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+  if (Object.keys(validationErrors).length === 0) {
+    try {
+      const { username, email, password } = formData;
+      const payload = { username, email, password };
 
-        const result = await res.json();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-        if (!res.ok) {
-          setErrors({ api: result.message || 'Something went wrong' });
-        } else {
-          setSuccessMessage('Registration successful! Redirecting...');
-          setShowToast(true);
-          setFormData({ username: '', email: '', password: '', confirmPassword: '' });
+      const result = await res.json();
 
-          setTimeout(() => {
-            router.push('/auth/login');
-          }, 3000);
-        }
-      } catch (err) {
-        console.error('Login error:', err);
-        setErrors({ api: 'Server error. Please try again later.' });
+      if (!res.ok) {
+        // 🔥 showToast for server-side error
+        showToast(result.detail || 'Something went wrong', 'error');
+      } else {
+        // ✅ showToast for successful registration
+        showToast('Registration successful! Redirecting...', 'success');
+        setFormData({ username: '', email: '', password: '', confirmPassword: '' });
+
+        setTimeout(() => {
+          router.push('/auth/login');
+        }, 4000);
       }
+    } catch (err: any) {
+      console.error('Register error:', err);
+      // 🌐 showToast for network error
+      showToast(err?.message || 'Network error. Please try again later.', 'error');
     }
-  };
-
-  useEffect(() => {
-    if (successMessage || errors.api) {
-      setShowToast(true);
-      const timeout = setTimeout(() => setShowToast(false), 3000);
-      return () => clearTimeout(timeout);
-    }
-  }, [successMessage, errors.api]);
+  }
+};
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 px-4">
-      {/* Toast Message */}
-      {showToast && (
-        <div className="fixed top-5 w-full max-w-md bg-white border-l-4 border-green-500 shadow-lg px-4 py-3 rounded text-green-700 font-medium z-50 animate-slidein">
-          <div className="flex items-center justify-between">
-            <span>{successMessage || errors.api}</span>
-          </div>
-          <div className="h-1 bg-green-500 mt-2 animate-progress" />
-        </div>
-      )}
-
       <form
         onSubmit={handleSubmit}
         className="bg-white p-6 rounded-xl shadow-md w-full max-w-md space-y-4 mt-20"
@@ -158,12 +143,10 @@ export default function RegisterForm() {
             className="w-full border border-gray-300 px-3 py-2 rounded"
             placeholder="••••••••"
           />
-          {errors.confirmPassword && (
-            <p className="text-red-600 text-sm mt-1">{errors.confirmPassword}</p>
-          )}
+          {errors.confirmPassword && <p className="text-red-600 text-sm mt-1">{errors.confirmPassword}</p>}
         </div>
 
-        {/* Show Password Toggle */}
+        {/* Show Password */}
         <div className="flex items-center">
           <input
             type="checkbox"
@@ -172,12 +155,9 @@ export default function RegisterForm() {
             checked={showPassword}
             onChange={() => setShowPassword(!showPassword)}
           />
-          <label htmlFor="showPassword" className="text-sm">
-            Show Passwords
-          </label>
+          <label htmlFor="showPassword" className="text-sm">Show Passwords</label>
         </div>
 
-        {/* Submit Button */}
         <button
           type="submit"
           className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 rounded"
@@ -185,7 +165,6 @@ export default function RegisterForm() {
           Register
         </button>
 
-        {/* Redirect to Login */}
         <p className="text-center text-sm mt-4">
           Already have an account?{' '}
           <button
@@ -195,39 +174,8 @@ export default function RegisterForm() {
           >
             Login
           </button>
-        </p>
+	</p>
       </form>
-
-      {/* Animation Styles */}
-      <style jsx>{`
-        .animate-slidein {
-          animation: slidein 0.4s ease-out forwards;
-        }
-
-        @keyframes slidein {
-          from {
-            opacity: 0;
-            transform: translateY(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-progress {
-          animation: shrink 3s linear forwards;
-        }
-
-        @keyframes shrink {
-          from {
-            width: 100%;
-          }
-          to {
-            width: 0%;
-          }
-        }
-      `}</style>
     </div>
   );
 }

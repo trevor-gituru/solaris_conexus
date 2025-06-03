@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../../../../components/Sidebar';
+import Sidebar from '@/components/Sidebar';
 import Monitor from './Monitor';
-import useAuth from '../../../../hooks/useAuth';
+import useAuth from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/providers/ToastProvider';
 
 interface PinLoad {
   pin: string;
@@ -27,44 +28,59 @@ export default function Devices() {
   const router = useRouter();
   const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
-  const [devices, setDevices] = useState<Device[]>([]);
+  const [device, setDevice] = useState<Device | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [showAddDeviceForm, setShowAddDeviceForm] = useState(false);
   const [togglingDeviceId, setTogglingDeviceId] = useState<number | null>(null);
   const [showMonitorDeviceId, setShowMonitorDeviceId] = useState<number | null>(null);
+  
+  const [showEditDeviceForm, setShowEditDeviceForm] = useState(false);
 
   const [deviceForm, setDeviceForm] = useState({
     device_type: '',
     device_id: '',
     connection_type: '',
-    estate: 'juja',
+    estate: 'Juja',
     pin_loads: [{ pin: '', load: '' }],
   });
+  
+  const { showToast } = useToast();
+
 
   // Fetch devices
-  useEffect(() => {
-    const fetchDevices = async () => {
-      const token = localStorage.getItem('token');
-      try {
-        const res = await fetch(`${API_URL}/get_devices`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        if (!res.ok) throw new Error('Failed to fetch devices');
-        const data = await res.json();
-        setDevices(data.devices || []);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDevices();
-  }, [API_URL]);
+useEffect(() => {
+  const fetchDevices = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${API_URL}/residents/device/get`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await res.json();
+
+      if (!result.success) {
+	  showToast(result.detail || 'Failed to fetch device', 'error');
+       } else {
+	  setDevice(result.data ?? null); // handle either one device or null
+       }
+    } catch (error: any) {
+      showToast(error?.message || 'An unexpected error occurred', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchDevices();
+}, [API_URL]);
+
+   const hasDevice = !loading && device && Object.keys(device).length > 0;
+  const [editDeviceForm, setEditDeviceForm] = useState(deviceForm);
+
 
   // Handlers for Create Device form
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
@@ -73,12 +89,22 @@ export default function Devices() {
     updated[idx] = { ...updated[idx], [name]: value };
     setDeviceForm({ ...deviceForm, pin_loads: updated });
   };
+
+const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
+  const { name, value } = e.target;
+  const updated = [...editDeviceForm.pin_loads];
+  updated[idx] = { ...updated[idx], [name]: value };
+  setEditDeviceForm({ ...editDeviceForm, pin_loads: updated });
+};
+
   const handleAddPinLoad = () => {
     setDeviceForm(prev => ({
       ...prev,
       pin_loads: [...prev.pin_loads, { pin: '', load: '' }],
     }));
   };
+
+
   const handleSubmit = async () => {
     const { device_type, device_id, connection_type, estate, pin_loads } = deviceForm;
     if (!device_type || !device_id || !connection_type || !estate || !pin_loads.length) {
@@ -87,7 +113,7 @@ export default function Devices() {
     }
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`${API_URL}/create_device`, {
+      const res = await fetch(`${API_URL}/residents/device/create`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -96,23 +122,61 @@ export default function Devices() {
         body: JSON.stringify(deviceForm),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to create device');
-      setSuccessMessage('Device created successfully!');
+      if (!res.ok) {
+ 	   showToast({ message: data.detail || 'Failed to create device', type: 'error' });
+	    return;
+  	}
+      showToast('Device created successfully!', 'success' );
+
       setTimeout(() => {
-        setSuccessMessage('');
-        window.location.reload();
-      }, 2000);
+      	window.location.reload();
+     }, 4000);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      showToast(
+	    err instanceof Error ? err.message : 'An unexpected error occurred',
+	    'error',
+      );
     }
   };
+
+
+const handleEditSubmit = async () => {
+  const token = localStorage.getItem('token');
+  try {
+    const res = await fetch(`${API_URL}/residents/device/update`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(editDeviceForm),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      showToast(data.detail || 'Failed to update device', 'error');
+      return;
+    }
+
+    showToast('Device updated successfully!', 'success');
+    setShowEditDeviceForm(false);
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 4000);
+  } catch (err: any) {
+    showToast(err.message || 'An unexpected error occurred', 'error');
+  }
+};
+
 
   // Toggle device
   const toggleDevice = async (deviceId: number) => {
     const token = localStorage.getItem('token');
     setTogglingDeviceId(deviceId);
     try {
-      const res = await fetch(`${API_URL}/toggle_device?device_id=${deviceId}`, {
+      const res = await fetch(`${API_URL}/residents/device/toggle`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -121,12 +185,12 @@ export default function Devices() {
       });
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.detail || 'Failed to toggle device');
+        showToast(errData.detail || 'Failed to toggle device', "error");
       }
       const data = await res.json();
-      alert(data.message || `Device ${deviceId} toggled`);
+      showToast(data.message || `Device toggled`, "success");
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Toggle error');
+      showToast(err instanceof Error ? err.message : 'Toggle error', "error");
     } finally {
       setTogglingDeviceId(null);
     }
@@ -143,21 +207,20 @@ export default function Devices() {
         {error && <p className="text-red-600 mb-4">Error: {error}</p>}
 
         {/* No Devices */}
-        {!loading && devices.length === 0 && (
-          <div className="bg-white rounded-xl shadow-lg p-8 text-center w-full max-w-md">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">No Devices Registered</h2>
-            <p className="text-gray-600 mb-6">
-              It looks like there are no devices. Click below to add your first device.
-            </p>
-            <button
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
-              onClick={() => setShowAddDeviceForm(true)}
-            >
-              Add Device
-            </button>
-          </div>
-        )}
-
+        {!loading && (!device || Object.keys(device).length === 0) && (
+  <div className="bg-white rounded-xl shadow-lg p-8 text-center w-full max-w-md">
+    <h2 className="text-2xl font-semibold text-gray-800 mb-4">No Device Registered</h2>
+    <p className="text-gray-600 mb-6">
+      It looks like there is no device. Click below to add your device.
+    </p>
+    <button
+      className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+      onClick={() => setShowAddDeviceForm(true)}
+    >
+      Add Device
+    </button>
+  </div>
+)}
         {/* Add Device Form Popup */}
         {showAddDeviceForm && (
           <div className="fixed inset-0 flex items-center justify-center z-50">
@@ -196,15 +259,15 @@ export default function Devices() {
                 />
 
                 <div>
-                  <span className="font-medium text-gray-600">Connection Type:</span>
+                  <span className="font-medium text-gray-600">Power Role:</span>
                   <select
                     value={deviceForm.connection_type}
                     onChange={e => setDeviceForm({ ...deviceForm, connection_type: e.target.value })}
                     className="border p-2 w-full rounded-md"
                   >
-                    <option value="">Select Connection Type</option>
-                    <option value="Wired">Wired</option>
-                    <option value="Wireless">Wireless</option>
+                    <option value="">Select Power Role</option>
+                    <option value="Producer">Producer</option>
+                    <option value="Consumer">Consumer</option>
                   </select>
                 </div>
 
@@ -266,80 +329,188 @@ export default function Devices() {
           </div>
         )}
 
-        {/* Device Cards */}
-        {!loading && devices.length > 0 && (
+{showEditDeviceForm && (
+  <div className="fixed inset-0 flex items-center justify-center z-50">
+    <div
+      className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+      onClick={() => setShowEditDeviceForm(false)}
+    />
+    <div className="relative bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+      <h2 className="text-2xl font-semibold text-gray-800 mb-4">Edit Device</h2>
+
+      <div className="space-y-4">
+        <select
+          value={editDeviceForm.device_type}
+          onChange={e =>
+            setEditDeviceForm({ ...editDeviceForm, device_type: e.target.value })
+          }
+          className="border p-2 w-full rounded-md"
+        >
+          <option value="">Select Device Type</option>
+          <option value="Arduino Uno">Arduino Uno</option>
+          <option value="Arduino Mega">Arduino Mega</option>
+          <option value="Raspberry Pi">Raspberry Pi</option>
+          <option value="ESP32">ESP32</option>
+        </select>
+
+        <input
+          type="text"
+          placeholder="Device ID"
+          value={editDeviceForm.device_id}
+          onChange={e =>
+            setEditDeviceForm({ ...editDeviceForm, device_id: e.target.value })
+          }
+          className="border p-2 w-full rounded-md"
+        />
+
+        <select
+          value={editDeviceForm.connection_type}
+          onChange={e =>
+            setEditDeviceForm({ ...editDeviceForm, connection_type: e.target.value })
+          }
+          className="border p-2 w-full rounded-md"
+        >
+          <option value="">Select Power Role</option>
+          <option value="Producer">Producer</option>
+          <option value="Consumer">Consumer</option>
+        </select>
+
+        <input
+          type="text"
+          value={editDeviceForm.estate}
+          disabled
+          className="border p-2 w-full rounded-md"
+        />
+
+        <div>
+          <span className="font-medium">Pin Loads</span>
+          {editDeviceForm.pin_loads.map((pl, idx) => (
+            <div key={idx} className="flex space-x-2 mt-2">
+              <input
+                name="pin"
+                value={pl.pin}
+                onChange={e => handleEditInputChange(e, idx)}
+                placeholder="Pin"
+                className="border p-2 w-24 rounded-md"
+              />
+              <input
+                name="load"
+                value={pl.load}
+                onChange={e => handleEditInputChange(e, idx)}
+                placeholder="Load"
+                className="border p-2 w-24 rounded-md"
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="flex justify-end space-x-4 mt-6">
+          <button
+            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition"
+            onClick={() => setShowEditDeviceForm(false)}
+          >
+            Close
+          </button>
+          <button
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+            onClick={handleEditSubmit}
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+       {/* Single Device Card */}
+{/* Device Card */}
+        {hasDevice && (
           <div className="w-full max-w-4xl mx-auto mt-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {devices.map(device => (
-                <div
-                  key={device.id}
-                  className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow max-w-sm"
-                >
-                  <h2 className="text-xl font-semibold text-gray-800 mb-2">{device.device_id}</h2>
+            <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow max-w-sm">
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">{device.device_id}</h2>
 
-                  <div className="mb-3">
-                    <span className="font-medium text-gray-600">Device Type:</span>
-                    <span className="text-gray-800">{device.device_type}</span>
-                  </div>
+              <div className="mb-3">
+                <span className="font-medium text-gray-600">Device Type:</span>
+                <span className="text-gray-800"> {device.device_type}</span>
+              </div>
 
-                  <div className="mb-3">
-                    <span className="font-medium text-gray-600">Connection Type:</span>
-                    <span className="text-gray-800">{device.connection_type}</span>
-                  </div>
+              <div className="mb-3">
+                <span className="font-medium text-gray-600">Power Role:</span>
+                <span className="text-gray-800"> {device.connection_type}</span>
+              </div>
 
-                  <div className="mb-3">
-                    <span className="font-medium text-gray-600">Estate:</span>
-                    <span className="text-gray-800">{device.estate ?? '—'}</span>
-                  </div>
+              <div className="mb-3">
+                <span className="font-medium text-gray-600">Estate:</span>
+                <span className="text-gray-800"> {device.estate ?? '—'}</span>
+              </div>
 
-                  <div className="mb-3">
-                    <span className="font-medium text-gray-600">Status:</span>
-                    <span className="text-gray-800">{device.status ?? 'Inactive'}</span>
-                  </div>
+              <div className="mb-3">
+                <span className="font-medium text-gray-600">Status:</span>
+                <span className="text-gray-800"> {device.status ?? 'Inactive'}</span>
+              </div>
 
-                  <div className="mt-3">
-                    <span className="font-medium text-gray-600">Pin Loads:</span>
-                    <ul className="list-disc list-inside ml-4">
-                      {device.pin_loads.length > 0
-                        ? device.pin_loads.map((pl, i) => (
-                            <li key={i}>{pl.pin}: {pl.load}</li>
-                          ))
-                        : <li>—</li>
-                      }
-                    </ul>
-                  </div>
+              <div className="mt-3">
+                <span className="font-medium text-gray-600">Pin Loads:</span>
+                <ul className="list-disc list-inside ml-4">
+                  {device.pin_loads?.length > 0 ? (
+                    device.pin_loads.map((pl, i) => (
+                      <li key={i}>
+                        {pl.pin}: {pl.load}
+                      </li>
+                    ))
+                  ) : (
+                    <li>—</li>
+                  )}
+                </ul>
+              </div>
 
-                  <p className="text-sm text-gray-500 mt-4">
-                    Registered: {new Date(device.created_at).toLocaleString()}
-                  </p>
+              <p className="text-sm text-gray-500 mt-4">
+                Registered: {new Date(device.created_at).toLocaleString()}
+              </p>
 
-                  <div className="flex space-x-2 mt-4">
-                    <button
+              <div className="flex flex-wrap items-center gap-3 mt-4">
+<button
+  disabled={device.status !== 'active' || togglingDeviceId === device.id}
+  onClick={() => toggleDevice(device.id)}
+  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2
+    ${device.status === 'active' && togglingDeviceId !== device.id
+      ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-400'
+      : 'bg-gray-300 text-gray-600 cursor-not-allowed'}
+  `}
+>
+  {togglingDeviceId === device.id ? 'Toggling...' : 'Toggle Device'}
+</button>
+		  <button
 		    disabled={device.status !== 'active'}
-                      onClick={() => toggleDevice(device.id)}
-                      className={`
-                        px-4 py-2 rounded 
-                        ${device.status === 'active' 
-        ? 'bg-blue-600 text-white hover:bg-blue-700' 
-        : 'bg-gray-300 text-gray-600 cursor-not-allowed'}'} 
-                        text-white transition
-                      `}
-                    >
-                      {togglingDeviceId === device.id ? 'Toggling...' : 'Toggle Device'}
-                    </button>
-                    <button
-		    disabled={device.status !== 'active'}
-                      onClick={() => setShowMonitorDeviceId(device.id)}
-                      className={`px-4 py-2 rounded w-full transition 
-      ${device.status === 'active' 
-        ? 'bg-green-600 text-white hover:bg-green-700' 
-        : 'bg-gray-300 text-gray-600 cursor-not-allowed'}
-    `}                    >
-                      Monitor
-                    </button>
-                  </div>
-                </div>
-              ))}
+		    onClick={() => setShowMonitorDeviceId(device.id)}
+		    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2
+		      ${device.status === 'active'
+			? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-400'
+			: 'bg-gray-300 text-gray-600 cursor-not-allowed'}
+		    `}
+		  >
+		    Monitor
+		  </button>
+
+		  <button
+		    onClick={() => {
+		      if (device) {
+			setEditDeviceForm({
+			  device_type: device.device_type,
+			  device_id: device.device_id,
+			  connection_type: device.connection_type,
+			  estate: device.estate || '',
+			  pin_loads: device.pin_loads,
+			});
+			setShowEditDeviceForm(true);
+		      }
+		    }}
+		    className="px-4 py-2 rounded-lg text-sm font-medium text-indigo-600 hover:text-white hover:bg-indigo-600 border border-indigo-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+		  >
+		    Edit Device
+		  </button>
+	</div>
             </div>
           </div>
         )}

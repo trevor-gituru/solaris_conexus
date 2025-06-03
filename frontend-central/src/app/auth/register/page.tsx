@@ -1,3 +1,4 @@
+// app/auth/register/page.tsx
 export const metadata = {
     title: 'Register',
   };

@@ -1,10 +1,13 @@
+// app/auth/register/LoginForm.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/providers/ToastProvider';
 
 export default function LoginForm() {
   const router = useRouter();
+  const { showToast } = useToast();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -12,9 +15,6 @@ export default function LoginForm() {
   });
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState<'success' | 'error' | ''>('');
-  const [showMessage, setShowMessage] = useState(false);
   const [showPassword, setShowPassword] = useState(false); // state for showing password
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,61 +35,38 @@ export default function LoginForm() {
     return newErrors;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const validationErrors = validate();
-    setErrors(validationErrors);
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const validationErrors = validate();
+  setErrors(validationErrors);
 
-    if (Object.keys(validationErrors).length === 0) {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        });
+  if (Object.keys(validationErrors).length === 0) {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
 
-        const result = await res.json();
-	console.log(result);
+      const result = await res.json();
 
-        if (!res.ok) {
-          setMessageType('error');
-          setMessage(result.message || 'Invalid credentials');
-          setShowMessage(true);
-        } else {
-          // Store the JWT token in localStorage
-          localStorage.setItem('token', result.access_token);
-          setMessageType('success');
-          setMessage('Login successful! Redirecting...');
-          setShowMessage(true);
-          setTimeout(() => router.push('/dashboard/resident'), 2000);
-        }
-      } catch (err) {
-        setMessageType('error');
-        console.error('Login error:', err);
-        setMessage('Server error. Please try again.');
-        setShowMessage(true);
+      if (!res.ok) {
+        showToast(result.detail || 'Invalid credentials', 'error');
+      } else {
+        localStorage.setItem('token', result.access_token);
+        showToast('Login successful! Redirecting...', 'success');
+        setTimeout(() => router.push('/dashboard/resident/profile'), 4000);
       }
+    } catch (err: any) {
+      showToast(err?.message || 'Server error. Please try again.', 'error');
     }
-  };
-
-  useEffect(() => {
-    if (showMessage) {
-      const timer = setTimeout(() => setShowMessage(false), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [showMessage]);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-md w-full max-w-md space-y-4">
         <h2 className="text-2xl font-bold text-center">Login</h2>
-
-        {showMessage && (
-          <div className={`text-center p-2 rounded ${messageType === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-            {message}
-            <div className={`h-1 ${messageType === 'success' ? 'bg-green-500' : 'bg-red-500'} animate-[shrink_3s_linear_forwards]`} />
-          </div>
-        )}
 
         <div>
           <label className="block mb-1 text-sm font-semibold">Email</label>

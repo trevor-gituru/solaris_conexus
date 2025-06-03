@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Sidebar from '../../../../components/Sidebar';
-import useAuth from '../../../../hooks/useAuth';
+import Sidebar from '@/components/Sidebar';
+import useAuth from '@/hooks/useAuth';
 import { connect } from '@starknet-io/get-starknet';
 import { WalletAccount, cairo } from 'starknet';
 import { getContract } from '@/lib/strkContract';
-
+import { Dialog } from '@headlessui/react';
+import { useToast } from '@/components/providers/ToastProvider';
 
 import { RpcProvider, num, hash } from 'starknet';
 
@@ -17,16 +18,18 @@ const TradeAvailable = () => {
   const [txHash, setTxHash] = useState<string | null>(null);
   const [trades, setTrades] = useState<any[]>([]);
   const [isFetching, setIsFetching] = useState(true);
+  const [selectedTrade, setSelectedTrade] = useState(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const PROVIDER_URL = process.env.NEXT_PUBLIC_PROVIDER_URL!;
+  const { showToast } = useToast();
 
   // Fetch available trades
   useEffect(() => {
     const fetchAvailable = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}/get_free_trade`, {
+        const res = await fetch(`${API_URL}/residents/trade/available`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -35,10 +38,16 @@ const TradeAvailable = () => {
         });
         if (!res.ok) throw new Error('Failed to fetch available trades');
         const data = await res.json();
-        setTrades(data.trades || []);
+	// ✅ Expecting List[Dict] directly, so we just sort and set
+      const sortedTrades = data.data.sort(
+        (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+
+      setTrades(sortedTrades);
+        setTrades(data.data || []);
       } catch (err) {
-        console.error('Fetch error:', err);
-        setTrades([]);
+   	showToast("Fetch error:", "error");
+   	setTrades([]);
       } finally {
         setIsFetching(false);
       }
@@ -47,7 +56,14 @@ const TradeAvailable = () => {
     fetchAvailable();
   }, [API_URL]);
 
- const handleAcceptTrade = async (tradeId: number, originalTxHash: string, strk_price: number, stc_offered: number) => {
+const normalizeAddress = (addr: string | null) => {
+  if (!addr) return '';
+  return '0x' + addr.replace(/^0x/, '').padStart(64, '0').toLowerCase();
+};
+
+
+
+ const handleAcceptTrade = async (tradeId: number, originalTxHash: string, strk_price: number, sct_offered: number) => {
   setIsLoading(true);
   setTxHash(null);
 
@@ -64,21 +80,28 @@ const TradeAvailable = () => {
     const lenderAddress = tradeEvent.data[2];
     const localId       = Number(localIdHex);
 
-    console.log('Accepting trade localId=', localId, 'lender=', lenderAddress);
+    showToast(`Accepting trade localId=${localId} lender=${lenderAddress}`,);
 
     // 1. Connect Braavos wallet
     const selectedSWO = await connect({
-      modalMode: 'alwaysAsk',
       modalTheme: 'light',
       include: ['braavos'],
     });
-    if (!selectedSWO || selectedSWO.id !== 'braavos') {
-      throw new Error('Braavos wallet is required');
-    }
+    
     const account = await WalletAccount.connect(
       { nodeUrl: PROVIDER_URL },
       selectedSWO
     );
+    const connectedAddress = normalizeAddress(account?.address);
+    const storedAddress = normalizeAddress(localStorage.getItem('account_address'));
+    if (storedAddress !== connectedAddress) {
+      showToast(
+        `Please switch to the correct Braavos account address: ${storedAddress || 'Not set'}`,
+        { type: 'error' }
+      );
+      setIsLoading(false);
+      return;
+    }
 
     // 2. Connect contract
     const contract = await getContract();
@@ -93,11 +116,9 @@ const TradeAvailable = () => {
 
     });
     const { transaction_hash } = await account.execute(call);
-    setTxHash(transaction_hash);
-    const sct_offered = stc_offered
     // 4. Notify backend (you can include lenderAddress if needed)
     const token = localStorage.getItem('token');
-    await fetch(`${API_URL}/accept_trade`, {
+    const res = await fetch(`${API_URL}/residents/trade/accept`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -110,23 +131,26 @@ const TradeAvailable = () => {
 	sct_offered: sct_offered
       }),
     });
+const result = await res.json();
 
-    // 5. Refresh list
-    const updatedRes = await fetch(`${API_URL}/get_free_trade`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    const updatedData = await updatedRes.json();
-    setTrades(updatedData.trades || []);
+    if (!res.ok) {
+      showToast(result.detail || 'Failed to Accept trade', 'error');
+      return;
+    }
+
+    showToast('Trade successfully Accepted!', 'success');
+
+    //Remove new trade to top of list
+    setTrades((prev) => prev.filter((trade) => trade.id !== tradeId));
+
+    // Clear inputs
   } catch (err: any) {
-    console.error('Accept Trade Error:', err);
+    showToast('Unexpected error occurred while accepting trade', 'error');
   } finally {
     setIsLoading(false);
   }
 };
+
   return (
     <div className="flex flex-col w-full px-4 py-6 mt-20">
       {/* Header */}
@@ -137,79 +161,194 @@ const TradeAvailable = () => {
         </p>
       </div>
 
-      {/* Submission Tx Hash */}
-      {txHash && (
-        <p className="mb-4 text-sm text-blue-600 break-all">
-          Transaction Submitted: {txHash}
-        </p>
+{/* Trade History Table */}
+<div className="bg-white shadow rounded-lg p-6">
+  <h2 className="text-xl font-semibold mb-4">Trade History</h2>
+  <div className="overflow-x-auto">
+    <table className="min-w-full text-sm text-left border border-gray-200">
+      <thead className="bg-gray-100 text-gray-700 font-semibold">
+        <tr>
+          <th className="px-4 py-2">Date</th>
+          <th className="px-4 py-2">SCT Offered</th>
+          <th className="px-4 py-2">STRK Price</th>
+          <th className="px-4 py-2">Status</th>
+          <th className="px-4 py-2">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {isFetching ? (
+          <tr>
+            <td colSpan={5} className="text-center py-4">Loading...</td>
+          </tr>
+        ) : trades.length === 0 ? (
+          <tr>
+            <td colSpan={5} className="text-center py-4 text-gray-500">No trades found.</td>
+          </tr>
+        ) : (
+          trades.map((trade, i) => (
+            <tr key={i} className="border-t hover:bg-gray-50">
+              <td className="px-4 py-2">
+  {(() => {
+    const tradeDate = new Date(trade.date);
+    const now = new Date();
+    const isToday =
+      tradeDate.toDateString() === now.toDateString();
+
+    return isToday
+      ? tradeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : tradeDate.toLocaleDateString();
+  })()}
+</td>
+              <td className="px-4 py-2">{trade.sct_offered} STC</td>
+              <td className="px-4 py-2">{trade.strk_price} STRK</td>
+              <td className="px-4 py-2 capitalize">{trade.status}</td>
+              <td className="px-4 py-2">
+                <button
+                  onClick={() => setSelectedTrade(trade)}
+                  className="text-blue-600 hover:underline"
+                >
+                  View
+                </button>
+              </td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  </div>
+</div>
+{/* Trade Details Modal */}
+<Dialog open={!!selectedTrade} onClose={() => setSelectedTrade(null)} className="relative z-50">
+  {/* Backdrop */}
+  <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+
+  {/* Modal Panel */}
+  <div className="fixed inset-0 flex items-center justify-center p-4">
+    <Dialog.Panel className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+      <Dialog.Title className="text-lg font-bold mb-4">Trade Details</Dialog.Title>
+      {selectedTrade ? (
+        <ul className="space-y-2 text-sm text-gray-700">
+          <li><strong>Date:</strong> {new Date(selectedTrade.date).toLocaleString()}</li>
+          <li><strong>SCT Offered:</strong> {selectedTrade.sct_offered}</li>
+          <li><strong>STRK Price:</strong> {selectedTrade.strk_price}</li>
+          <li><strong>Status:</strong> {selectedTrade.status}</li>
+          <li><strong>Seller:</strong> {selectedTrade.seller || 'N/A'}</li>
+          <li><strong>Buyer:</strong> {selectedTrade.buyer || 'N/A'}</li>
+
+          <ul className="space-y-2 text-sm">
+  {selectedTrade.tx_data?.create && (
+    <li>
+      <strong>Create Tx:</strong>{' '}
+      <a
+        href={`https://sepolia.starkscan.co/tx/${selectedTrade.tx_data.create}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-green-600 underline break-words"
+      >
+        {selectedTrade.tx_data.create.slice(0, 6)}...{selectedTrade.tx_data.create.slice(-4)}
+      </a>
+    </li>
+  )}
+
+  {selectedTrade.status === 'cancelled' && selectedTrade.tx_data?.cancelled && (
+    <li>
+      <strong>Cancel Tx:</strong>{' '}
+      <a
+        href={`https://sepolia.starkscan.co/tx/${selectedTrade.tx_data.cancelled}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-red-600 underline break-words"
+      >
+        {selectedTrade.tx_data.cancelled.slice(0, 6)}...{selectedTrade.tx_data.cancelled.slice(-4)}
+      </a>
+    </li>
+  )}
+
+  {selectedTrade.status === 'accepted' && (
+    <>
+      {selectedTrade.tx_data?.accept && (
+        <li>
+          <strong>Accept Tx:</strong>{' '}
+          <a
+            href={`https://sepolia.starkscan.co/tx/${selectedTrade.tx_data.accept}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline break-words"
+          >
+            {selectedTrade.tx_data.accept.slice(0, 6)}...{selectedTrade.tx_data.accept.slice(-4)}
+          </a>
+        </li>
       )}
 
-      {/* Trades Table */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm text-left border border-gray-200">
-            <thead className="bg-gray-100 text-gray-700 font-semibold">
-              <tr>
-                <th className="px-4 py-2">Date</th>
-                <th className="px-4 py-2">Tx Hash</th>
-                <th className="px-4 py-2">SCT Offered</th>
-                <th className="px-4 py-2">STRK Price</th>
-                <th className="px-4 py-2">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isFetching ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-4">
-                    Loading...
-                  </td>
-                </tr>
-              ) : trades.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-4 text-gray-500">
-                    No available trades.
-                  </td>
-                </tr>
-              ) : (
-                trades.map((trade) => (
-                  <tr key={trade.id} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-2">
-                      {new Date(trade.date).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-2">
-                      <a
-                        href={`https://sepolia.starkscan.co/tx/${trade.tx_hash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                        title={trade.tx_hash}
-                      >
-                        {trade.tx_hash.slice(0, 6)}...{trade.tx_hash.slice(-4)}
-                      </a>
-                    </td>
-                    <td className="px-4 py-2">{trade.stc_offered} SCT</td>
-                    <td className="px-4 py-2">{trade.strk_price} STRK</td>
-                    <td className="px-4 py-2">
-                      <button
-                        onClick={() =>
-                          handleAcceptTrade(trade.id, trade.tx_hash, trade.strk_price, trade.stc_offered)
-                        }
-                        disabled={isLoading}
-                        className="text-green-600 hover:underline disabled:opacity-50"
-                      >
-                        {isLoading ? 'Processing...' : 'Accept'}
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
+      {selectedTrade.tx_data?.pay_accept && (
+        <li>
+          <strong>Pay Accept Tx:</strong>{' '}
+          <a
+            href={`https://sepolia.starkscan.co/tx/${selectedTrade.tx_data.pay_accept}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-purple-600 underline break-words"
+          >
+            {selectedTrade.tx_data.pay_accept.slice(0, 6)}...{selectedTrade.tx_data.pay_accept.slice(-4)}
+          </a>
+        </li>
+      )}
+
+      {Array.isArray(selectedTrade.tx_data?.pay) && selectedTrade.tx_data.pay.length > 0 && (
+        <li>
+          <strong>Payment Txs:</strong>
+          <ul className="pl-4 list-disc space-y-1">
+            {selectedTrade.tx_data.pay.map((tx: string, idx: number) => (
+              <li key={idx}>
+                <a
+                  href={`https://sepolia.starkscan.co/tx/${tx}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-indigo-600 underline break-words"
+                >
+                  {tx.slice(0, 6)}...{tx.slice(-4)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </li>
+      )}
+    </>
+  )}
+</ul>
+        </ul>
+      ) : null}
+
+      {/* Close Button */}
+{selectedTrade && (
+  <>
+    {/* Close Button */}
+    <button
+      onClick={() => setSelectedTrade(null)}
+      className="mt-6 w-full text-white bg-gray-800 hover:bg-gray-900 px-4 py-2 rounded"
+    >
+      Close
+    </button>
+
+    {/* Cancel Trade Button – only when status is pending */}
+    {selectedTrade.status === 'pending' && (
+      <button
+        onClick={() => handleAcceptTrade(selectedTrade.id, selectedTrade.tx_data?.create, selectedTrade.strk_price, selectedTrade.sct_offered)}
+        className="mt-2 w-full text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
+      >
+        Accept Trade
+      </button>
+    )}
+  </>
+)}
+    </Dialog.Panel>
+  </div>
+</Dialog>
+
+</div>
+);
 };
+
 
 export default TradeAvailable;
 

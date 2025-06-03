@@ -1,54 +1,64 @@
-// app/profile/profileDecide.tsx
+// src/app/dashboard/resident/profile/ProfileDecide.tsx
+
 "use client"
 
 import { useEffect, useState } from 'react';
 import Profile from './Profile';
 import ProfileShow from './ProfileShow';
-import useAuth from '../../../../hooks/useAuth';
+import useAuth from '@/hooks/useAuth';
+import { useToast } from '@/components/providers/ToastProvider';
 
 interface ProfileData {
-  id: number;
   first_name: string;
   last_name: string;
   dob: string;
   gender: string;
   phone: string;
-  account_address: string | null; // <-- Add this
+  account_address: string | null;
 }
 
 const ProfileDecide = () => {
   useAuth();
+  const { showToast } = useToast();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL ; // Backend URL
+  const API_URL = process.env.NEXT_PUBLIC_API_URL; // Backend URL
 
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        const response = await fetch(`${API_URL}/get_profile`, {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/residents/user_profile/get`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
           },
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch profile data');
-        }
+        const result = await response.json();
 
-        const data = await response.json();
-        setProfileData(data); // Set profile data in state
-      } catch (error: unknown) {
-        if (error instanceof Error) {
-          setError(error.message); // Set error message if fetch fails
+        if (!result.success) {
+          showToast(result.detail || 'Error fetching user profile', 'error');
         } else {
-          setError('An unexpected error occurred'); // Fallback error message
+          setProfileData(result.data);
+	  // ✅ Save account_address to localStorage
+          if (result.data.account_address) {
+            localStorage.setItem('account_address', result.data.account_address);
+          } else {
+            localStorage.removeItem('account_address');
+          }
         }
+      } catch (error: unknown) {
+        showToast(
+          typeof error === 'object' && error !== null && 'message' in error
+            ? (error as Error).message
+            : 'Unknown error occurred',
+          'error'
+        );
       } finally {
-        setLoading(false); // Set loading to false after request completes
+        setLoading(false);
       }
     };
 
@@ -56,12 +66,10 @@ const ProfileDecide = () => {
   }, []);
 
   if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
 
   return profileData && profileData.first_name
-  ? <ProfileShow profileData={profileData} />
-  : <Profile />;
-
+    ? <ProfileShow profileData={profileData} />
+    : <Profile />;
 };
 
 export default ProfileDecide;

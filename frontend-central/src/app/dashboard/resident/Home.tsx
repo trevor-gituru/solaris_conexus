@@ -1,13 +1,16 @@
+// src/app/dashboard/resident/Home.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Sidebar from '../../../components/Sidebar';
-import useAuth from '../../../hooks/useAuth';
+import Sidebar from '@/components/Sidebar';
+import { useToast } from '@/components/providers/ToastProvider';
+import useAuth from '@/hooks/useAuth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const Home = () => {
   useAuth();
+  const { showToast } = useToast();
 
   const [userData, setUserData] = useState({
     nos_devices: 0,
@@ -22,7 +25,7 @@ const Home = () => {
       const token = localStorage.getItem('token'); // Get JWT token from localStorage
 
       try {
-        const res = await fetch(`${API_URL}/get_user_details`, {
+        const res = await fetch(`${API_URL}/residents/user_profile/details`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -30,11 +33,15 @@ const Home = () => {
           },
         });
 	
-        if (!res.ok) throw new Error('Failed to fetch user details');
-        const data = await res.json();
-        setUserData(data);
+	const result = await res.json();
+	
+        if (!result.success) {
+		showToast(result.detail || 'Error fetching user details', 'error');
+	} else {
+	        setUserData(result.data);
+	}
       } catch (error) {
-        console.error('Error fetching user details:', error);
+        showToast(error?.message || 'Unkonwn error occurred', 'error');
       } finally {
         setLoading(false);
       }

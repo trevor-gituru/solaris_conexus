@@ -1,4 +1,4 @@
-// app/profile/page.tsx
+// src/app/dashboard/resident/profile/page.tsx
 
 import ProfileDecide from './ProfileDecide'; // Import the decision logic
 

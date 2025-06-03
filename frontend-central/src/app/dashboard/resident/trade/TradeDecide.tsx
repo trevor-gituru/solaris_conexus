@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Sidebar from '../../../../components/Sidebar'; // Adjust path if needed
+import Sidebar from '@/components/Sidebar'; // Adjust path if needed
 import TradeMy from './TradeMy';
 import TradeAvailable from './TradeAvailable';
 

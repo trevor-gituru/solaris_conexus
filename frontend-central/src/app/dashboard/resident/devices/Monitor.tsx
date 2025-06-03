@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import PowerChart from '@/components/PowerChart'; // adjust path as needed
+import { useToast } from '@/components/providers/ToastProvider';
 
 interface MonitorProps {
   deviceId: number;
@@ -14,17 +15,24 @@ interface DataPoint {
 export default function Monitor({ deviceId, onClose }: MonitorProps) {
   const [powerData, setPowerData] = useState<DataPoint[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const BACKEND_HOST = process.env.NEXT_PUBLIC_BACKEND_HOST;
-    const socket = new WebSocket(
-      `${protocol}://${BACKEND_HOST}/device/stream?token=${token}`
-    );
+useEffect(() => {
+
+  const token = localStorage.getItem('token');
+  
+
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const BACKEND_HOST = process.env.NEXT_PUBLIC_BACKEND_HOST;
+  const wsUrl = `${protocol}://${BACKEND_HOST}/residents/device/stream?token=${token}`;
+
+  let socket: WebSocket;
+
+  const timeoutId = setTimeout(() => {
+    socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
-      console.log(`WebSocket opened for device ${deviceId}`);
+      showToast(`Connected to device stream`, 'success');
     };
 
     socket.onmessage = (event) => {
@@ -40,27 +48,28 @@ export default function Monitor({ deviceId, onClose }: MonitorProps) {
           });
         }
       } catch (e) {
-        console.error('Invalid JSON:', e);
+        showToast('Invalid data received', 'error');
       }
     };
 
-    socket.onerror = (event) => {
-      console.warn('WebSocket encountered error:', event);
-      //setError('Connection error. Please try again later.');
+    socket.onerror = () => {
+      showToast('WebSocket error occurred', 'error');
     };
 
     socket.onclose = (event) => {
       if (event.code !== 1006) {
-        console.log(`WebSocket closed: code=${event.code}, reason=${event.reason}`);
-      } else {
-        console.log('WebSocket closed with code 1006 (ignored)');
+        showToast(`WebSocket closed (reason=${event.reason || 'no reason provided'})`, 'info');
       }
     };
+  }, 1000); // 3 second delay
 
-    return () => {
+  return () => {
+    clearTimeout(timeoutId);
+    if (socket) {
       socket.close(1000, 'Component unmounted');
-    };
-  }, [deviceId]);
+    }
+  };
+}, [deviceId]);
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl">

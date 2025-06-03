@@ -18,7 +18,9 @@
     "nylas": "^7.8.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.5.2",
     "recharts": "^2.15.3",
+    "sonner": "^2.0.4",
     "starknet": "^6.24.1",
     "ws": "^8.18.2"
   },
