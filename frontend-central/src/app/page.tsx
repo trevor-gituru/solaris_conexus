@@ -1,6 +1,6 @@
 'use client';
 import Image from "next/image";
-import useAuth from '../hooks/useAuth'; // Adjust path as necessary
+import useAuth from '@/hooks/useAuth'; // Adjust path as necessary
 
 export default function Home() {
   useAuth();

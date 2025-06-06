@@ -1,10 +1,15 @@
-// app/auth/register/page.tsx
+// app/auth/login/page.tsx
 export const metadata = {
-    title: 'LogIn',
-  };
-  
+  title: 'LogIn',
+};
+
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import LoginForm from './LoginForm';
 
 export default function Page() {
-  return <LoginForm />;
+  return (
+    <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
+      <LoginForm />
+    </GoogleOAuthProvider>
+  );
 }
