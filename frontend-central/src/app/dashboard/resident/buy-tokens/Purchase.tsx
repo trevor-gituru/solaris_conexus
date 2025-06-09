@@ -33,7 +33,7 @@ const formatTime = (dateStr: string) => {
     timeZone: 'Africa/Nairobi',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false,
+    hour12: true,
   });
 };
 
@@ -517,7 +517,7 @@ const Purchase = () => {
               <ul className="space-y-2 text-sm text-gray-700">
                 <li>
                   <strong>Date:</strong>{' '}
-                  {new Date(selectedTrade.date).toLocaleString('en-KE', {
+                  {new Date(selectedTx?.date).toLocaleString('en-KE', {
                     timeZone: 'Africa/Nairobi',
                     year: 'numeric',
                     month: 'short',
