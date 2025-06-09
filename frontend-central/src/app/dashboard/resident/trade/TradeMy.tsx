@@ -194,6 +194,7 @@ const handleDeleteTrade = async (tradeId: string, originalTxHash: string) => {
       body: JSON.stringify({
         trade_id: parseInt(tradeId, 10), 
         tx_hash: transaction_hash,
+	      date: new Date().toISOString(),  // current date/time in ISO format
       }),
     });
 
