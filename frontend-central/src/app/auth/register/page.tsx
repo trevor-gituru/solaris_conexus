@@ -4,7 +4,13 @@ export const metadata = {
   };
   
 import RegisterForm from './RegisterForm';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 export default function Page() {
-  return <RegisterForm />;
+	return(
+		<GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
+			<RegisterForm />
+		</GoogleOAuthProvider>
+	);
+
 }
