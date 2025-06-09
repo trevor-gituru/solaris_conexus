@@ -164,58 +164,56 @@ const result = await res.json();
 {/* Trade History Table */}
 <div className="bg-white shadow rounded-lg p-6">
   <h2 className="text-xl font-semibold mb-4">Trade History</h2>
-  <div className="overflow-x-auto">
-    <table className="min-w-full text-sm text-left border border-gray-200">
-      <thead className="bg-gray-100 text-gray-700 font-semibold">
+<div className="overflow-x-auto">
+  <table className="min-w-full text-sm text-left border border-gray-200">
+    <thead className="bg-gray-100 text-gray-700 font-semibold">
+      <tr>
+        <th className="px-4 py-2">Date</th>
+        <th className="px-4 py-2">SCT Offered</th>
+        <th className="px-4 py-2 ">STRK Price</th>
+        <th className="px-4 py-2 hidden sm:table-cell">Status</th>
+        <th className="px-4 py-2">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {isFetching ? (
         <tr>
-          <th className="px-4 py-2">Date</th>
-          <th className="px-4 py-2">SCT Offered</th>
-          <th className="px-4 py-2">STRK Price</th>
-          <th className="px-4 py-2">Status</th>
-          <th className="px-4 py-2">Action</th>
+          <td colSpan={5} className="text-center py-4">Loading...</td>
         </tr>
-      </thead>
-      <tbody>
-        {isFetching ? (
-          <tr>
-            <td colSpan={5} className="text-center py-4">Loading...</td>
+      ) : trades.length === 0 ? (
+        <tr>
+          <td colSpan={5} className="text-center py-4 text-gray-500">No trades found.</td>
+        </tr>
+      ) : (
+        trades.map((trade, i) => (
+          <tr key={i} className="border-t hover:bg-gray-50">
+            <td className="px-4 py-2">
+              {(() => {
+                const tradeDate = new Date(trade.date);
+                const now = new Date();
+                const isToday = tradeDate.toDateString() === now.toDateString();
+                return isToday
+                  ? tradeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : tradeDate.toLocaleDateString();
+              })()}
+            </td>
+            <td className="px-4 py-2">{Math.floor(trade.sct_offered)} STC</td>
+            <td className="px-4 py-2 ">{Number(trade.strk_price).toFixed(4)} STRK</td>
+            <td className="px-4 py-2 capitalize hidden sm:table-cell">{trade.status}</td>
+            <td className="px-4 py-2">
+              <button
+                onClick={() => setSelectedTrade(trade)}
+                className="text-blue-600 hover:underline"
+              >
+                View
+              </button>
+            </td>
           </tr>
-        ) : trades.length === 0 ? (
-          <tr>
-            <td colSpan={5} className="text-center py-4 text-gray-500">No trades found.</td>
-          </tr>
-        ) : (
-          trades.map((trade, i) => (
-            <tr key={i} className="border-t hover:bg-gray-50">
-              <td className="px-4 py-2">
-  {(() => {
-    const tradeDate = new Date(trade.date);
-    const now = new Date();
-    const isToday =
-      tradeDate.toDateString() === now.toDateString();
-
-    return isToday
-      ? tradeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      : tradeDate.toLocaleDateString();
-  })()}
-</td>
-              <td className="px-4 py-2">{trade.sct_offered} STC</td>
-              <td className="px-4 py-2">{trade.strk_price} STRK</td>
-              <td className="px-4 py-2 capitalize">{trade.status}</td>
-              <td className="px-4 py-2">
-                <button
-                  onClick={() => setSelectedTrade(trade)}
-                  className="text-blue-600 hover:underline"
-                >
-                  View
-                </button>
-              </td>
-            </tr>
-          ))
-        )}
-      </tbody>
-    </table>
-  </div>
+        ))
+      )}
+    </tbody>
+  </table>
+</div>
 </div>
 {/* Trade Details Modal */}
 <Dialog open={!!selectedTrade} onClose={() => setSelectedTrade(null)} className="relative z-50">
