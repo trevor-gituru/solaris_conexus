@@ -20,7 +20,10 @@ export default function RegisterForm() {
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [showPassword, setShowPassword] = useState(false);
- const [googleUserInfo, setGoogleUserInfo] = useState<null | { email: string, sub: string }>(null);
+  const [googleUserInfo, setGoogleUserInfo] = useState<null | {
+    email: string;
+    sub: string;
+  }>(null);
 
   const [isGoogleRegistering, setIsGoogleRegistering] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -115,53 +118,56 @@ export default function RegisterForm() {
     googleRegister(); // triggers the login flow
   };
 
-const googleRegister = useGoogleLogin({
-  onSuccess: async (tokenResponse) => {
-    try {
-      const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: {
-          Authorization: `Bearer ${tokenResponse.access_token}`,
-        },
-      });
-      const data = await res.json();
+  const googleRegister = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
+        const res = await fetch(
+          'https://www.googleapis.com/oauth2/v3/userinfo',
+          {
+            headers: {
+              Authorization: `Bearer ${tokenResponse.access_token}`,
+            },
+          }
+        );
+        const data = await res.json();
 
-      // Update formData with Google data
-      setFormData((prev) => ({
-        ...prev,
-        email: data.email,
-        password: data.sub,
-        confirmPassword: data.sub,
-      }));
+        // Update formData with Google data
+        setFormData((prev) => ({
+          ...prev,
+          email: data.email,
+          password: data.sub,
+          confirmPassword: data.sub,
+        }));
 
-      setGoogleUserInfo({ email: data.email, sub: data.sub });
-    } catch (err) {
-      showToast('Failed to fetch user info', 'error');
+        setGoogleUserInfo({ email: data.email, sub: data.sub });
+      } catch (err) {
+        showToast('Failed to fetch user info', 'error');
+      }
+    },
+    onError: () => showToast('Google login failed', 'error'),
+  });
+
+  useEffect(() => {
+    if (googleUserInfo) {
+      // Set formData and delay submit until formData updates
+      const newFormData = {
+        username: formData.username,
+        email: googleUserInfo.email,
+        password: googleUserInfo.sub,
+        confirmPassword: googleUserInfo.sub,
+      };
+
+      setFormData(newFormData);
+
+      // Delay calling submit to allow state to propagate
+      setTimeout(() => {
+        handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+      }, 100); // 100ms is enough for state update
+
+      // Reset googleUserInfo
+      setGoogleUserInfo(null);
     }
-  },
-  onError: () => showToast('Google login failed', 'error'),
-});
-
-useEffect(() => {
-  if (googleUserInfo) {
-    // Set formData and delay submit until formData updates
-    const newFormData = {
-      username: formData.username,
-      email: googleUserInfo.email,
-      password: googleUserInfo.sub,
-      confirmPassword: googleUserInfo.sub,
-    };
-
-    setFormData(newFormData);
-
-    // Delay calling submit to allow state to propagate
-    setTimeout(() => {
-      handleSubmit({ preventDefault: () => {} } as React.FormEvent);
-    }, 100); // 100ms is enough for state update
-
-    // Reset googleUserInfo
-    setGoogleUserInfo(null);
-  }
-}, [googleUserInfo]);
+  }, [googleUserInfo]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 px-4">

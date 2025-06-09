@@ -1,10 +1,11 @@
 // app/auth/register/LoginForm.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/providers/ToastProvider';
-import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
+import { useGoogleLogin } from '@react-oauth/google';
+import { FcGoogle } from 'react-icons/fc';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -17,6 +18,10 @@ export default function LoginForm() {
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [showPassword, setShowPassword] = useState(false); // state for showing password
+ 
+const [googleUserInfo, setGoogleUserInfo] = useState<null | { email: string, sub: string }>(null);
+  const [isGoogleRegistering, setIsGoogleRegistering] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -67,44 +72,54 @@ export default function LoginForm() {
     }
   };
 
-  const handleGoogleSuccess = async (
-    credentialResponse: CredentialResponse
-  ) => {
-    function parseJwt(token: string) {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split('')
-          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-          .join('')
-      );
-
-      return JSON.parse(jsonPayload);
-    }
-
-    if (credentialResponse.credential) {
-      try {
-        const decoded = parseJwt(credentialResponse.credential);
-        console.log(JSON.stringify(decoded, null, 2), 'info');
-        // send token to backend ...
-
-        const result = await res.json();
-
-        if (!res.ok) {
-          showToast(result.detail || 'Google login failed', 'error');
-        } else {
-          localStorage.setItem('token', result.access_token);
-          showToast('Google login successful! Redirecting...', 'success');
-          setTimeout(() => router.push('/dashboard/resident/profile'), 3000);
-        }
-      } catch (err: any) {
-        showToast(err?.message || 'Server error. Please try again.', 'error');
-      }
-    } else {
-      showToast('Google credential not found.', 'error');
-    }
+  const handleGoogleLogin = () => { 
+    googleRegister(); // triggers the login flow
   };
+
+const googleRegister = useGoogleLogin({
+  onSuccess: async (tokenResponse) => {
+    try {
+      const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: {
+          Authorization: `Bearer ${tokenResponse.access_token}`,
+        },
+      });
+      const data = await res.json();
+
+      // Update formData with Google data
+      setFormData((prev) => ({
+        ...prev,
+        email: data.email,
+        password: data.sub,
+      }));
+
+      setGoogleUserInfo({ email: data.email, sub: data.sub });
+    } catch (err) {
+      showToast('Failed to fetch user info', 'error');
+    }
+  },
+  onError: () => showToast('Google login failed', 'error'),
+});
+
+useEffect(() => {
+  if (googleUserInfo) {
+    // Set formData and delay submit until formData updates
+    const newFormData = {
+      email: googleUserInfo.email,
+      password: googleUserInfo.sub,
+    };
+
+    setFormData(newFormData);
+
+    // Delay calling submit to allow state to propagate
+    setTimeout(() => {
+      handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+    }, 100); // 100ms is enough for state update
+
+    // Reset googleUserInfo
+    setGoogleUserInfo(null);
+  }
+}, [googleUserInfo]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
@@ -181,12 +196,18 @@ export default function LoginForm() {
           </div>
         </div>
 
-        <div className="flex justify-center">
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => showToast('Google Sign-In failed', 'error')}
-          />
-        </div>
+        <button
+          onClick={() => {
+            handleGoogleLogin();
+          }}
+          className="flex items-center justify-center gap-2 bg-white border border-gray-300 hover:bg-gray-100 text-black font-medium py-2 px-4 rounded w-full"
+          disabled={isLoading}
+          type="button"
+        >
+          <FcGoogle size={20} />
+          {isLoading ? 'Loading....' : 'Sign in with Google'}
+        </button>
+
       </form>
 
       <style jsx>{`
