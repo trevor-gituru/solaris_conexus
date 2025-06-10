@@ -99,6 +99,14 @@ const normalizeAddress = (addr: string | null) => {
 
     // Send trade to backend
     const token = localStorage.getItem('token');
+    
+    const kenyaTimeString = new Date().toLocaleString('sv-SE', {
+        timeZone: 'Africa/Nairobi',
+      });
+      // Format: "2025-06-10 08:42:10"
+
+      // Optionally convert to ISO-like format
+    const kenyaTimeISO = kenyaTimeString.replace(' ', 'T');
     const res = await fetch(`${API_URL}/residents/trade/create`, {
       method: 'POST',
       headers: {
@@ -109,7 +117,7 @@ const normalizeAddress = (addr: string | null) => {
         sct_offered: parseFloat(stcOffered),
         strk_price: strkPrice,
         tx_hash: transaction_hash,
-        date: new Date().toISOString(),
+        date: kenyaTimeISO,
       }),
     });
 

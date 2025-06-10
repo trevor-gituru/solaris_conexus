@@ -210,13 +210,20 @@ const Purchase = () => {
       }
 
       const strk_used = amountFloat * 10; // Assuming 1 SCT = 10 STRK equivalent in MPESA value
+      const kenyaTimeString = new Date().toLocaleString('sv-SE', {
+        timeZone: 'Africa/Nairobi',
+      });
+      // Format: "2025-06-10 08:42:10"
+
+      // Optionally convert to ISO-like format
+      const kenyaTimeISO = kenyaTimeString.replace(' ', 'T');
 
       const payload = {
         amount_sct: amountFloat,
         payment_tx_id: 'MPESA',
         payment_method: 'MPESA',
         strk_used: strk_used,
-        date: new Date().toISOString(),
+        date: kenyaTimeISO,
       };
 
       const response = await fetch(
