@@ -290,38 +290,16 @@ const handleDeleteTrade = async (tradeId: string, originalTxHash: string) => {
       trades.map((trade, i) => (
         <tr key={i} className="border-t hover:bg-gray-50">
           <td className="px-4 py-2">
-  {(() => {
-    const tradeDate = new Date(trade.date);
-    const now = new Date();
-
-    const tradeDateKE = new Date(
-      tradeDate.toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' })
-    );
-    const nowKE = new Date(
-      now.toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' })
-    );
-
-    const isToday =
-      tradeDateKE.getDate() === nowKE.getDate() &&
-      tradeDateKE.getMonth() === nowKE.getMonth() &&
-      tradeDateKE.getFullYear() === nowKE.getFullYear();
-
-    return isToday
-      ? tradeDateKE.toLocaleTimeString('en-KE', {
-          timeZone: 'Africa/Nairobi',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true,
-        })
-      : tradeDateKE.toLocaleDateString('en-KE', {
-          timeZone: 'Africa/Nairobi',
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        });
-  })()}
-</td>
-          <td className="px-4 py-2">{Math.floor(trade.sct_offered)} SCT</td>
+            {(() => {
+              const tradeDate = new Date(trade.date);
+              const now = new Date();
+              const isToday = tradeDate.toDateString() === now.toDateString();
+              return isToday
+                ? tradeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : tradeDate.toLocaleDateString();
+            })()}
+          </td>
+          <td className="px-4 py-2">{Math.floor(trade.sct_offered)}</td>
           <td className="px-4 py-2 capitalize">{trade.status}</td>
           <td className="px-4 py-2 hidden md:table-cell">{trade.strk_price} STRK</td>
           <td className="px-4 py-2">
