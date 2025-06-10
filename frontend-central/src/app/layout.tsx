@@ -1,22 +1,22 @@
 // app/layout.tsx
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import { ToastProvider } from "@/components/providers/ToastProvider";
+import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
+import './globals.css';
+import { ToastProvider } from '@/components/providers/ToastProvider';
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
 });
 
 export const metadata: Metadata = {
-  title: "Solaris Conexus",
-  description: "The homepage",
+  title: 'Solaris Conexus',
+  description: 'The homepage',
 };
 
 export default function RootLayout({
@@ -26,15 +26,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-    <head>
-	<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-	</head>
+      <head>
+        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-	<ToastProvider>
-        	{children}
-	</ToastProvider>
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );

@@ -21,7 +21,7 @@ const isToday = (dateStr: string) => {
 
 const formatTime = (dateStr: string) => {
   const date = new Date(dateStr);
-  return date.toLocaleTimeString('en-US', { hour12: false });
+  return date.toLocaleTimeString('en-US', { hour12: true });
 };
 
 const formatDate = (dateStr: string) => {
