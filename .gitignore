@@ -1,20 +1,11 @@
-# Global
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
-*.bak
-
 # Python (FastAPI backend)
 **/__pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 *.env
-*.venv/
-*.venv2/
-env/
-venv/
+**/env/
+**/venv/
 **/venv2/
 *.sqlite3
 instance/
@@ -34,6 +25,8 @@ npm-debug.log*
 *.casm
 target/
 cairo_output/
+*/owner/
+*/owner_signer/
 
 # Arduino
 *.hex
@@ -41,11 +34,6 @@ cairo_output/
 *.bin
 *.ino.*
 *.bak
-*.d
-*.o
-*.eep
-*.dep
-*.map
 
 # Project-specific
 *.db
