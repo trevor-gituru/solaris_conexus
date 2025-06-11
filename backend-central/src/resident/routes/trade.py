@@ -12,6 +12,7 @@ from src.utils.exception_handlers import DBExceptionHandler   # Correct lowercas
 from src.utils.auth import auth_service
 from src.utils.logging import logger
 from src.utils.starknet import sct
+from src.utils.notifications import notification_manager 
 
 db_exception_handler = DBExceptionHandler()
 router = APIRouter()
@@ -152,6 +153,7 @@ async def accept_trade(
         trade.accept(db, tx_hash, trade_req.tx_hash, user.id)
         message = f"Trade {trade.id} was Accepted by {user.username}"
         logger.info(message)
+        notification_manager.notify_trade_accepted(trade)
         return MessageResponse(message=message)
 
 

@@ -7,6 +7,7 @@ load_dotenv()
 class Settings:
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").split(",")
     DATABASE_URL = os.getenv("DATABASE_URL")
+    FRONTEND_URL = os.getenv("FRONTEND_URL")
     SECRET_KEY = os.getenv("SECRET_KEY")
 
     # Nylas config
@@ -48,6 +49,10 @@ class Settings:
     SCT_CONTRACT_ADDRESS = os.getenv("SCT_CONTRACT_ADDRESS")
     STRK_CONTRACT_ADDRESS = os.getenv("STRK_CONTRACT_ADDRESS")
     STARKNET_RPC_URL = os.getenv("STARKNET_RPC_URL")
+
+    # Africas Talking
+    SMS_USERNAME=os.getenv("SMS_USERNAME")
+    SMS_API=os.getenv("SMS_API")
 
 settings = Settings()
 

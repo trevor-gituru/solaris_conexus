@@ -11,6 +11,10 @@ class GenderEnum(str, Enum):
     female = "Female"
     other = "Other"
 
+class NotificationType(str, Enum):
+    sms = "sms"
+    email = "email"
+    none = ""
 
 class ProfileRequest(BaseModel):
     first_name: constr(min_length=2, max_length=50)  # First name should be between 2 and 50 characters
@@ -25,6 +29,8 @@ class ProfileRequest(BaseModel):
 
 class ProfileUpdateRequest(BaseModel):
     phone: Optional[constr(max_length=15)] = None
+    phone2: Optional[constr(max_length=15)] = None
+    notification: Optional[constr(max_length=10)] = None
     account_address: Optional[constr(max_length=100)] = None
 
     class Config:

@@ -21,7 +21,9 @@ class Profile(Base):
     dob = Column(Date, nullable=False)
     gender = Column(String(10), nullable=False)
     phone = Column(String(15), nullable=True)
-    account_address = Column(String(66), unique=True, nullable=False)
+    account_address = Column(String(66), unique=True, nullable=False) 
+    phone2 = Column(String(15), nullable=True)
+    notification = Column(String(10), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"))
 
     user = relationship("User", back_populates="profile")
@@ -54,6 +56,8 @@ class Profile(Base):
             "dob": self.dob.isoformat() if isinstance(self.dob, date) else self.dob,
             "gender": self.gender,
             "phone": self.phone,
+            "phone2": self.phone2,
+            "notification": self.notification,
             "account_address": self.account_address,
         }
 

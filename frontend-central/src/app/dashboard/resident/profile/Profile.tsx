@@ -271,7 +271,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
           {/* Phone Number */}
           <div>
-            <label className="block mb-1 text-sm font-semibold">Phone Number</label>
+            <label className="block mb-1 text-sm font-semibold">Mpesa Number</label>
             <input
               name="phoneNumber"
               value={formData.phoneNumber}

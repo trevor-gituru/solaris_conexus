@@ -14,6 +14,8 @@ interface ProfileData {
   dob: string;
   gender: string;
   phone: string;
+  phone2: string;
+  notification: string;
   account_address: string | null;
 }
 
