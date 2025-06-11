@@ -71,6 +71,22 @@ mod SolarisConexusToken {
             return trade_arr;
         }
     }
+    #[allow(starknet::store_no_default_variant)]
+    #[derive(Copy, Drop, Serde, starknet::Store)]
+    pub enum HubStatus {
+        Active,        // Hub is active and has been created by owner
+        Closed,        // Hub has been closed or terminated by owner
+    }
+
+    #[generate_trait]
+    impl HubStatusImpl of HubStatusTrait{
+        fn to_u8(self: @HubStatus) -> u8{
+            match self {
+                HubStatus::Active => { 0_u8 },
+                HubStatus::Closed => { 1_u8 },
+            }
+        }
+    }
 
     #[allow(starknet::store_no_default_variant)]
     #[derive(Copy, Drop, Serde, starknet::Store)]
@@ -107,6 +123,7 @@ mod SolarisConexusToken {
         Transfer: Transfer,
         Trade: TradeEvent,
         Upgrade: Upgrade,
+	Hub: Hub
 
     }
     /// @dev Represents a Consume action successfuly performed
@@ -115,6 +132,15 @@ mod SolarisConexusToken {
         #[key]
         account: ContractAddress,
         amount: u256
+    }
+
+    /// @dev Represents a Hub action successfuly performed
+    #[derive(Drop, starknet::Event)]
+    struct Hub {
+        #[key]
+        account_address: ContractAddress,
+	id: u64,
+        status: u8
     }
 
 
@@ -177,6 +203,7 @@ mod SolarisConexusToken {
     #[storage]
     struct Storage {
         account_balances: Map<ContractAddress, u256>,
+	hubs: Vec<Option<ContractAddress>>,
         trade: Vec<Option<Trade>>,
         trade_counter: u64,
         total_supply: u256,
@@ -228,6 +255,32 @@ mod SolarisConexusToken {
             return (self.trade.len() - 1_u64);
         }
 
+
+	fn _insertHub(ref self: ContractState, hub: ContractAddress) -> u64{
+            // Check for an empty vec
+            if self.hubs.len() == 0{
+                self.hubs.push(Option::Some(hub));
+                return 0_u64;
+            }
+            // Check for vec with empty slot
+            let mut i: u64 = 0;
+            let mut found_slot: bool = false;
+            while i < self.hubs.len(){
+                let current_hub: Option<ContractAddress> = self.hubs.at(i).read();
+                if current_hub.is_none(){
+                    self.hubs.at(i).write(Option::Some(hub));
+                    found_slot = true;
+                    break;
+                }
+                i = i + 1;
+            };
+            if found_slot{
+                return i;
+            }
+            self.hubs.push(Option::Some(hub));
+            return (self.hubs.len() - 1_u64);
+        }
+
         fn _transferFromOwner(ref self: ContractState, borrower: ContractAddress, amount: u256){
             let owner_account: ContractAddress = self.owner.read();
             assert!(self._sufficientBalance(owner_account, amount), "INSUFFICIENT BALANCE");        
@@ -248,6 +301,16 @@ mod SolarisConexusToken {
 
     #[generate_trait]
     impl InternalViewFunctions of InternalViewFunctionsTraits{
+
+    	fn _getHub(self: @ContractState, hub_id: u64) -> ContractAddress{
+            assert!(hub_id < self.hubs.len(), "INVALID HUB ID");
+            let hub: Option<ContractAddress> = self.hubs.at(hub_id).read();
+            assert!(hub.is_some(), "HUB DOES NOT EXIST");
+            let hub: ContractAddress = hub.unwrap();
+            return hub;
+
+        }
+
         fn _getTrade(self: @ContractState, trade_id: u64) -> Trade{
             assert!(trade_id < self.trade.len(), "INVALID trade ID");
             let trade: Option<Trade> = self.trade.at(trade_id).read();
@@ -255,6 +318,30 @@ mod SolarisConexusToken {
             let trade: Trade = trade.unwrap();
             return trade;
 
+        }
+
+	fn _isAuth(self: @ContractState, account: ContractAddress) -> bool{
+            let mut auth: bool = false;
+            let owner: ContractAddress = self.owner.read();
+	    // Check for an empty vec
+            if owner == account{
+                auth = true;
+		return auth;
+            }
+            // Check for vec with empty slot
+            let mut i: u64 = 0;
+            while i < self.hubs.len(){
+                let current_hub: Option<ContractAddress> = self.hubs.at(i).read();
+                if current_hub.is_some(){
+		    if current_hub.unwrap() == account{
+		    	auth = true;
+			return auth;
+		    }
+                }
+                i = i + 1;
+            };
+	    return auth;
+            
         }
 
         fn _isOwner(self: @ContractState, account: ContractAddress) -> bool{
@@ -266,12 +353,26 @@ mod SolarisConexusToken {
             transfer_amount: u256
         ) -> bool{
             let balance: u256 = self.balanceOf(account);
-            (transfer_amount < balance)
+            (transfer_amount <= balance)
         }
     }
     
     #[abi(embed_v0)]
     impl SolarisConexusTokenStateImpl of ISolarisConexusTokenState<ContractState> {
+
+       fn addHub(ref self: ContractState, hub: ContractAddress){
+            let caller: ContractAddress = (get_caller_address());
+            let owner: ContractAddress = self.owner.read();
+            assert!(caller == owner, "INSUFFICIENT AUTHORITY");            
+            let hub_id: u64 = self._insertHub(hub);
+	    let hub_event: Hub = Hub {
+                id: hub_id,
+                account_address: hub,
+                status: HubStatus::Active.to_u8()
+            };
+            self.emit(hub_event);
+        }
+
         fn buy(ref self: ContractState, buyer: ContractAddress, amount: u256){
             let contract_account: ContractAddress = (get_contract_address());
             let owner: ContractAddress = (get_caller_address());
@@ -311,13 +412,27 @@ mod SolarisConexusToken {
 
         fn consume(ref self: ContractState, account: ContractAddress, amount: u256){
             let call_account: ContractAddress = (get_caller_address());
-            assert!(self._isOwner(call_account), "UNAUTHORIZED ACCOUNT");
+            assert!(self._isAuth(call_account), "UNAUTHORIZED ACCOUNT");
             assert!(self._sufficientBalance(account, amount), "INSUFFICIENT BALANCE");        
             let new_free_token: u256 = self.account_balances.entry(account).read() - amount;
             let new_supply: u256 = self.total_supply.read() - amount; 
             self.total_supply.write(new_supply);
             self.account_balances.entry(account).write(new_free_token);
             self.emit(Consume{account, amount});
+        }
+
+	fn deleteHub(ref self: ContractState, hub_id: u64){
+            let mut hub: ContractAddress = self._getHub(hub_id);
+            let caller: ContractAddress = get_caller_address();
+            assert!(self._isOwner(caller), "UNAUTHORIZED ACCOUNT");
+            self.hubs.at(hub_id).write(Option::None);
+            let hub_event: Hub = Hub {
+                id: hub_id,
+                account_address: hub,
+                status: HubStatus::Closed.to_u8()
+            };
+            self.emit(hub_event);
+
         }
 
         fn deleteTrade(ref self: ContractState, trade_id: u64){
@@ -361,7 +476,7 @@ mod SolarisConexusToken {
             let owner: ContractAddress = get_caller_address();
             let mut trade: Trade = self._getTrade(trade_id);
             assert!(trade.status.to_u8() == 1, "INACTIVE TRADE");
-            assert!(self._isOwner(owner), "UNAUTHORIZED ACCOUNT");
+            assert!(self._isAuth(owner), "UNAUTHORIZED ACCOUNT");
             let balance: u256 = trade.balance;
             assert!(amount <= balance, "INVALID REPAYMENT AMOUNT");
             let seller: ContractAddress = trade.lender;
@@ -439,6 +554,13 @@ mod SolarisConexusToken {
             }
             let trade_arr = TradeImpl::toArray(trade.unwrap());
             trade_arr
+        }
+
+	fn fetchHub(self: @ContractState, hub_id: u64) -> ContractAddress {
+            assert!(hub_id < self.hubs.len(), "INVALID HUB ID");
+	    let hub: ContractAddress = self.hubs.at(hub_id).read()
+                        .unwrap_or(TryInto::try_into(0).unwrap());
+            hub
         }
 
         fn filterTrade(self: @ContractState, amount: u256) -> Array<u64> {

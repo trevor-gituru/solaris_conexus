@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# class Settings:
 BACKEND_URL = os.getenv("BACKEND_URL")
 BACKEND_KEY = os.getenv("BACKEND_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -26,3 +27,4 @@ MQTT_PASSWORD = os.getenv('MQTT_PASSWORD')
 MQTT_PUBLISH_TOPIC = os.getenv('MQTT_PUBLISH_TOPIC')
 MQTT_SUBSCRIBE_TOPIC = os.getenv('MQTT_SUBSCRIBE_TOPIC')
 
+# settings = Settings()

@@ -1,84 +1,91 @@
-import random
-import time
-import threading
 import serial
+import time
+import json
+import random
 
-SERIAL_PORT = '/dev/pts/0'  # Change to match your virtual serial port
-BAUDRATE = 9600
+# Use your actual virtual port here
+SERIAL_PORT = "/dev/pts/3"  # Or COM3 on Windows
+BAUD_RATE = 9600
 
-device_id = 'H001'
-mode = 3
-led_on = False
-power = 0
-balance = None
-last_instruction = 0
+account_balance = 4.89
+connection_status = False
+led_state = False
+device_id = "H001"
+current = 0.0
+battery_voltage = 3.7
 
-ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=1)
+def get_current():
+    return round(random.uniform(0.2, 0.6), 2)
 
-def read_serial():
-    global balance, last_instruction, led_on
-    while True:
-        try:
-            line = ser.readline().decode().strip()
-            if line:
-                parts = line.split(',')
-                if len(parts) == 2:
-                    balance = float(parts[0])
-                    last_instruction = int(parts[1])
-                    print(f"[Serial] Received balance: {balance}, instruction: {last_instruction}")
-                    if last_instruction == 1:
-                        led_on = False
-                        print("[Serial] Instruction: Turn OFF LED")
-        except Exception as e:
-            print(f"[Serial Error] {e}")
-            balance = None
+def get_battery_voltage():
+    return round(random.uniform(3.5, 4.2), 2)
 
-def main_loop():
-    global mode, led_on, power
-    while True:
-        if mode == 1:
-            print(f"Device ID: {device_id}")
-        elif mode == 2:
-            state = "ON" if led_on else "OFF"
-            print(f"LED {state}")
-        elif mode == 3:
-            power = random.randint(10, 100)
-            print(f"Power: {power}W")
-        elif mode == 4:
-            if balance is not None:
-                print(f"Balance: {balance}")
-            else:
-                print("Error fetching")
+def build_status_message():
+    return json.dumps({
+        "current": current,
+        "voltage": battery_voltage,
+        "req": "true" if led_state else "false"
+    })
 
-        # Send data over serial
-        try:
-            msg = f"{device_id},{power},{mode}\n"
-            ser.write(msg.encode())
-        except Exception as e:
-            print(f"[Send Error] {e}")
+def build_idle_message():
+    return json.dumps({
+        "device_id": device_id
+    })
 
-        time.sleep(2)
+def main():
+    global current, battery_voltage, connection_status, account_balance, led_state
+    ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+    print(f"Connected to {SERIAL_PORT} at {BAUD_RATE} baud.")
+    
+    last_send = time.time()
+    last_recv = time.time()
 
-def input_loop():
-    global mode, led_on
-    while True:
-        cmd = input("Press 1=ID, 2=Toggle LED, 3=Power, 4=Balance, 5=LED state:\n")
-        if cmd == '1':
-            mode = 1
-        elif cmd == '2':
-            mode = 2
-            led_on = not led_on
-        elif cmd == '3':
-            mode = 3
-        elif cmd == '4':
-            mode = 4
-        elif cmd == '5':
-            print(f"LED is {'ON' if led_on else 'OFF'}")
-        else:
-            print("Invalid input.")
+    try:
+        while True:
+            if ser.in_waiting > 0:
+                line = ser.readline().decode('utf-8').strip()
+                if line:
+                    print(f"[Estate Hub → Simulated Arduino] {line}")
+                    last_recv = time.time()
+                    try:
+                        if "," in line:
+                            balance_str, instruction_str = line.split(",")
+                            account_balance = float(balance_str)
+                            instruction = int(instruction_str)
 
-# Start threads
-threading.Thread(target=read_serial, daemon=True).start()
-threading.Thread(target=main_loop, daemon=True).start()
-input_loop()
+                            if instruction == 0:
+                                connection_status = False
+                            elif instruction == 1:
+                                connection_status = True
+                            elif instruction == 2:
+                                led_state = not led_state
+
+                    except Exception as e:
+                        print("Error parsing serial input:", e)
+
+            # Auto-disconnect after 10s of inactivity
+            if time.time() - last_recv > 10:
+                connection_status = False
+
+            # Send data every second
+            if time.time() - last_send > 1:
+                current = get_current()
+                battery_voltage = get_battery_voltage()
+                if connection_status:
+                    ser.write((build_status_message() + "\n").encode())
+                    print("[Arduino → Estate Hub] Sent status.")
+                else:
+                    ser.write((build_idle_message() + "\n").encode())
+                    print("[Arduino → Estate Hub] Sent ID only.")
+                last_send = time.time()
+
+            time.sleep(0.1)
+
+    except KeyboardInterrupt:
+        ser.close()
+        print("Serial closed. Exiting...")
+
+if __name__ == "__main__":
+    main()
+
 

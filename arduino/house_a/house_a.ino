@@ -22,17 +22,19 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 // LED pin
 #define LED_PIN 10
 #define MASTER_PIN 11
+ 
 
 // Globals
 char lastKey = ' ';
 int mode = -1;
 float current = 0.0;
+float current_1 = 0.0;
 bool ledState = false;
 bool connectionStatus = false;
-bool updateBalance = false;
 float accountBalance = 4.89;
-String device_id = "H002";
+String device_id = "H001";
 String req = "read";
+bool updateBalance = false;
 
 // Timers
 unsigned long lastCurrentUpdate = 0;
@@ -44,7 +46,9 @@ const unsigned long sendInterval = 1000;
 // Variables to reduce flicker
 int prevMode = -2;
 float prevCurrent = -1.0;
+float prevCurrent_1 = -1.0;
 float prevBatteryVoltage = 0.0;
+float prevBatteryVoltage_1 = 0.0;
 bool prevConnectionStatus = false;
 float prevAccountBalance = -1.0;
 bool prevLedState = false;
@@ -55,6 +59,14 @@ const int analogPin = A1;       // Analog pin connected to voltage divider
 const float R1 = 6700.0;        // 6.7k resistor
 const float R2 = 4700.0;        // 4.7k resistor
 float batteryVoltage = 0.0;
+
+const int analogPin_1 = A3;       // Analog pin connected to voltage divider
+const float R1_1 = 6700.0;        // 6.7k resistor
+const float R2_1 = 4500.0;        // 4.5k resistor
+float batteryVoltage_1 = 0.0;
+
+#define BATTERY A2
+#define SOLAR_CURRENT A3
 
 void setup() {
   Serial.begin(9600);
@@ -68,6 +80,7 @@ void setup() {
   pinMode(MASTER_PIN, OUTPUT);
   digitalWrite(LED_PIN, ledState ? HIGH : LOW);
   digitalWrite(MASTER_PIN, HIGH);
+
 }
 
 void loop() {
@@ -76,11 +89,11 @@ void loop() {
   updatePower();
 
   
-  // === MASTER SWITCH CONTROL BASED ON BALANCE & CONNECTION ===
-  if (accountBalance > 0 && connectionStatus) {
-    digitalWrite(MASTER_PIN, HIGH); // Turn ON master switch
+//   === MASTER SWITCH CONTROl BASED CHARGE ===
+  if (batteryVoltage_1 < 12.3) {
+    digitalWrite(MASTER_PIN, HIGH); // Turn ON Charge controller
   } else {
-    digitalWrite(MASTER_PIN, LOW);  // Turn OFF master switch
+    digitalWrite(MASTER_PIN, LOW);  // Turn OFF Charge controller
   }
 
   if (ledState != prevLedState || millis() - lastSendTime >= sendInterval) {
@@ -98,7 +111,7 @@ void acceptKeypadInput() {
 
   if (input == 'C') {
     mode = -1;
-  } else if (input >= '0' && input <= '6') {
+  } else if (input >= '0' && input <= '8') {
     mode = input - '0';
   } else if (input == 'A') {
     updateBalance = true;
@@ -139,7 +152,7 @@ void acceptSerialInput() {
 
       }
     }
-  } else if (millis() - lastSerialInputTime > 20000) {
+  } else if (millis() - lastSerialInputTime > 10000) {
     connectionStatus = false;
   }
 }
@@ -152,15 +165,24 @@ void updatePower() {
     long currentSum = 0;
     long voltageSum = 0;
 
+    long currentSum_1 = 0;
+    long voltageSum_1 = 0;
+
     for (int i = 0; i < samples; i++) {
-      currentSum += analogRead(A0);  // Read current sensor
-      voltageSum += analogRead(A1);  // Read voltage divider
+      currentSum += analogRead(A0);  // Read current sensor for house
+      voltageSum += analogRead(A1);  // Read voltage divider for house
+      
+      currentSum_1 += analogRead(A2);  // Read current sensor for charge
+      voltageSum_1 += analogRead(A3);  // Read voltage divider for charge
       delay(2);  // Minimal delay for stability
     }
 
     // --- Calculate average values ---
     float avgCurrentADC = currentSum / (float)samples;
     float avgVoltageADC = voltageSum / (float)samples;
+
+    float avgCurrentADC_1 = currentSum_1 / (float)samples;
+    float avgVoltageADC_1 = voltageSum_1 / (float)samples;
 
     // --- Convert ADC to real-world values ---
     float voltageCurrent = avgCurrentADC * (5.0 / 1023.0);
@@ -169,13 +191,30 @@ void updatePower() {
     float voltageAtA1 = avgVoltageADC * (5.0 / 1023.0);
     batteryVoltage = voltageAtA1 * ((R1 + R2) / R2);
 
-       // Add this check BEFORE converting current
-      if (batteryVoltage < 5.0) {
-        current = 0;
-      } else {
-        float voltageCurrent = avgCurrentADC * (5.0 / 1023.0);
-        current = abs((voltageCurrent - 2.5) / 0.185);
-      }
+    float voltageCurrent_1 = avgCurrentADC_1 * (5.0 / 1023.0);
+    current_1 = (voltageCurrent_1 - 2.5) / 0.185;  // Adjust based on sensor
+
+    float voltageAtA3 = avgVoltageADC_1 * (5.0 / 1023.0);
+    batteryVoltage_1 = voltageAtA3 * ((R1_1 + R2_1) / R2_1);
+
+    // Add this check BEFORE converting current
+    if (batteryVoltage < 5.0 || !ledState) {
+      current = 0;
+    } else {
+      float voltageCurrent = avgCurrentADC * (5.0 / 1023.0);
+      current = abs((voltageCurrent - 2.5) / 0.185);
+    }
+
+    if (batteryVoltage_1 < 5.0) {
+      current_1 = 0;
+    } else {
+      float voltageCurrent_1 = avgCurrentADC_1 * (5.0 / 1023.0);
+      current_1 = (voltageCurrent_1 - 2.5) / 0.185;
+      
+    }
+
+    
+
   }
 }
 
@@ -187,7 +226,6 @@ void sendSerialOutput() {
     message += "\"voltage\":" + String(batteryVoltage, 2) + ",";
     message += "\"update\":\"" + String(updateBalance ? "true" : "false") + "\",";
     message += "\"req\":\"" + String(ledState ? "true" : "false") + "\"";
-    
     message += "}";
     Serial.println(message);
   } else {
@@ -222,6 +260,14 @@ void displayLcd() {
         if (abs(batteryVoltage - prevBatteryVoltage) > 0.01) shouldUpdate = true;
         break;
 
+      case 7:
+        if (abs(current_1 - prevCurrent_1) > 0.01) shouldUpdate = true;
+        break;
+
+       case 8:
+        if (abs(batteryVoltage_1 - prevBatteryVoltage_1) > 0.01) shouldUpdate = true;
+        break;
+
       case 0:
         if (device_id != prevDeviceId) shouldUpdate = true;
         break;
@@ -232,11 +278,13 @@ void displayLcd() {
 
   prevMode = mode;
   prevCurrent = current;
+  prevCurrent_1 = current_1;
   prevConnectionStatus = connectionStatus;
   prevAccountBalance = accountBalance;
   prevLedState = ledState;
   prevDeviceId = device_id;
   prevBatteryVoltage = batteryVoltage;  // Add this
+  prevBatteryVoltage_1 = batteryVoltage_1;  // Add this
 
   lcd.clear();
 
@@ -257,7 +305,7 @@ void displayLcd() {
 
     case 2:
       lcd.setCursor(0, 0);
-      lcd.print("Avg Current:");
+      lcd.print("House Current:");
       lcd.setCursor(0, 1);
       lcd.print(current, 2);
       lcd.print(" A");
@@ -295,9 +343,26 @@ void displayLcd() {
 
     case 6:
       lcd.setCursor(0, 0);
-      lcd.print("Battery Voltage:");
+      lcd.print("House Voltage:");
       lcd.setCursor(0, 1);
       lcd.print(batteryVoltage, 2);
+      lcd.print(" V");
+      break;
+
+    case 7:
+      lcd.setCursor(0, 0);
+      lcd.print("Charge Current:");
+      lcd.setCursor(0, 1);
+      lcd.print(current_1, 2);
+      lcd.print(" A");
+      break;
+
+
+    case 8:
+      lcd.setCursor(0, 0);
+      lcd.print("Battery Voltage:");
+      lcd.setCursor(0, 1);
+      lcd.print(batteryVoltage_1, 2);
       lcd.print(" V");
       break;
   

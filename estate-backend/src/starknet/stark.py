@@ -12,14 +12,21 @@ client = FullNodeClient(
     node_url=NODE_URL
 )
 
+# account = Account(
+#     client=client,
+#     address=WALLET_ADDRESS,
+#     key_pair=KeyPair.from_private_key(
+#         key=WALLET_PRIV
+#     ),
+#     chain=StarknetChainId.SEPOLIA,
+# )
 account = Account(
     client=client,
-    address=WALLET_ADDRESS,
-    key_pair=KeyPair.from_private_key(
-        key=WALLET_PRIV
-    ),
+    address="0x040dc3bb58168d641811d5a516760c9ba57ee7bf98c547fa3fb5fce71774d90b",
+    key_pair=KeyPair.from_private_key(key="0x044a3fe666102135fd9ef67426d2ba01d8b8f252048b391b68042e93b14246bc"),
     chain=StarknetChainId.SEPOLIA,
 )
+
 
 contract_address = SCT_ADDRESS
 
@@ -73,34 +80,24 @@ async def buy_tokens(buyer_address: str, amount: int) -> str:
 
 
 
-async def signTrade(buyer_address: str, trade_id: int, amount: int) -> str:
+async def consume(account: str) -> str:
     """
     Buys tokens using the provided StarkNet address and amount.
     Returns the transaction hash.
     """
     
-    buyer_int = int(buyer_address, 16)
+    buyer_int = int(account, 16)
     
     try:
         # Call the contract's 'buy' method
         # Assuming amount is a Decimal like Decimal("10.5")
-        invocation = await contract.functions["signTrade"].invoke_v3(
-            buyer=buyer_int,
-            trade_id=int(trade_id),
+        invocation = await contract.functions["consume"].invoke_v3(
+            account=buyer_int,
+            amount=int(1),
             auto_estimate=True,
         )
         # Wait for transaction to be accepted
         await invocation.wait_for_acceptance()
-
-        # Pay Trade
-        invocation = await contract.functions["payTrade"].invoke_v3(
-            trade_id=int(trade_id),
-            amount=int(amount),
-            auto_estimate=True,
-        )
-        # Wait for transaction to be accepted
-        await invocation.wait_for_acceptance()
-
 
         return hex(invocation.hash)
 

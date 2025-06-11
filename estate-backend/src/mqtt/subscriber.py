@@ -23,9 +23,28 @@ def on_message(client, userdata, msg):
     try:
         command = json.loads(msg.payload.decode())
 
-        if command.get("action") == "send_history":
-            from .utils import publish_historical_data
-            publish_historical_data(hours=command.get("hours", 24))
+        if "device" in command and "update_balance" in command:
+            device_id = command["device"]
+            amount = command["update_balance"]
+
+            db_generator = get_db()
+            db: Session = next(db_generator)
+            try:
+                device = db.query(Device).filter(Device.id == device_id).first()
+                if device:
+                    token_balance = device.token_balance + amount
+                    device.token_balance = token_balance
+                    db.commit()
+                    print(f"[MQTT] Updated token balance for device {device.device_id} by {amount}")
+                else:
+                    print(f"[MQTT] Device ID {device_id} not found in database.")
+            finally:
+                db.close()
+                # Close the generator to trigger the generator's finally block if any
+                try:
+                    next(db_generator)
+                except StopIteration:
+                    pass
 
         elif "device" in command and "instruction" in command:
             device_id = command["device"]

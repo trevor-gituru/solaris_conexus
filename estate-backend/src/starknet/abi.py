@@ -26,6 +26,18 @@ contract_abi = [
     "items": [
       {
         "type": "function",
+        "name": "addHub",
+        "inputs": [
+          {
+            "name": "hub",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
         "name": "buy",
         "inputs": [
           {
@@ -74,6 +86,18 @@ contract_abi = [
         "inputs": [
           {
             "name": "trade_id",
+            "type": "core::integer::u64"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "deleteHub",
+        "inputs": [
+          {
+            "name": "hub_id",
             "type": "core::integer::u64"
           }
         ],
@@ -255,6 +279,22 @@ contract_abi = [
         "outputs": [
           {
             "type": "core::array::Array::<solaris_conexus_token::SolarisConexusToken::ArrayData>"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "fetchHub",
+        "inputs": [
+          {
+            "name": "hub_id",
+            "type": "core::integer::u64"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "core::starknet::contract_address::ContractAddress"
           }
         ],
         "state_mutability": "view"
@@ -443,6 +483,28 @@ contract_abi = [
   },
   {
     "type": "event",
+    "name": "solaris_conexus_token::SolarisConexusToken::Hub",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "account_address",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
+      },
+      {
+        "name": "id",
+        "type": "core::integer::u64",
+        "kind": "data"
+      },
+      {
+        "name": "status",
+        "type": "core::integer::u8",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
     "name": "solaris_conexus_token::SolarisConexusToken::Event",
     "kind": "enum",
     "variants": [
@@ -469,6 +531,11 @@ contract_abi = [
       {
         "name": "Upgrade",
         "type": "solaris_conexus_token::SolarisConexusToken::Upgrade",
+        "kind": "nested"
+      },
+      {
+        "name": "Hub",
+        "type": "solaris_conexus_token::SolarisConexusToken::Hub",
         "kind": "nested"
       }
     ]
