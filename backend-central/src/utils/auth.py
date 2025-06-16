@@ -21,11 +21,13 @@ class AuthService:
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         return self.pwd_context.verify(plain_password, hashed_password)
 
-    def create_access_token(self, data: dict, expires_delta: timedelta = None) -> str:
+    def create_access_token(self, data: dict, expires_minutes: int = None) -> str:
         to_encode = data.copy()
-        expire = datetime.utcnow() + (expires_delta or timedelta(minutes=self.access_token_expire_minutes))
+        minutes = expires_minutes if expires_minutes is not None else self.access_token_expire_minutes
+        expire = datetime.utcnow() + timedelta(minutes=minutes)
         to_encode.update({"exp": expire})
         return jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
+
 
     def decode_token(self, token: str) -> dict | None:
         try:

@@ -25,6 +25,21 @@ class Device(Base):
     user = relationship("User", back_populates="devices")
     hub = relationship("Hub", back_populates="devices")
 
+    def close(self, db: Session):
+        self.status = "inactive"
+        db.commit()
+        db.refresh(self)
+
+        return self
+
+
+    def activate(self, db: Session):
+        self.status = "active"
+        db.commit()
+        db.refresh(self)
+
+        return self
+
     def to_dict(self):
         return {
             "device_type": self.device_type,
@@ -35,6 +50,16 @@ class Device(Base):
             "pin_loads": self.pin_loads,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+    
+    def to_hub_dict(self):
+        return {
+            "id": self.id,
+            "device_id": self.device_id,
+            "connection_type": self.connection_type,
+            "account_address": self.user.profile.account_address
+        }
+
+
 
     @classmethod
     def create(cls, db: Session, device_data: dict):

@@ -101,7 +101,7 @@ async def stream_power_readings(websocket: WebSocket, db: Session = Depends(get_
 
         device = user.devices[0]
         device_id = device.id
-        topic = f"juja/power/{device_id}"
+        topic = f"{device.estate}/power/{device_id}"
 
         queue = asyncio.Queue()
         loop = asyncio.get_running_loop()
@@ -115,7 +115,7 @@ async def stream_power_readings(websocket: WebSocket, db: Session = Depends(get_
 
         register_listener(topic, mqtt_callback, loop=loop)
 
-        publish_command("juja/commands", {
+        publish_command(f"{device.estate}/commands", {
             "device": device_id,
             "command": "stream"
         })
@@ -139,7 +139,7 @@ async def stream_power_readings(websocket: WebSocket, db: Session = Depends(get_
     finally:
         if device_id:
             print(f"[WebSocket] Stopping stream for device {device_id}")
-            publish_command("juja/commands", {
+            publish_command(f"{device.estate}/commands", {
                 "device": device_id,
                 "command": "stop"
             })
@@ -162,7 +162,7 @@ async def toggle_device(
 
     device_id = device.id
 
-    publish_command("juja/commands", {
+    publish_command(f"{device.estate}/commands", {
         "device": device_id,
         "instruction": 2
     })
