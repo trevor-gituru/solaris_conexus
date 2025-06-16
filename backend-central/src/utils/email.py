@@ -110,6 +110,46 @@ class EmailClient:
             to_email=to_email
         )
 
+    def send_token_consumption(self, req, user):
+        to_name = user.username
+        to_email = user.email
+        device_id = req.get("device_id")
+        balance = req.get("balance")
+        tx_hash = req.get("tx_hash")
+
+        # Build transaction link or fallback
+        tx_link = f"https://sepolia.starkscan.co/tx/{tx_hash}" if tx_hash else "#"
+        site_link = f"{settings.FRONTEND_URL}/auth/login"
+
+        body = f"""
+        <html>
+          <body style="font-family: Arial, sans-serif; color: #333;">
+            <div style="max-width: 600px; margin: auto; padding: 20px;">
+              <h2 style="color: #2196F3;">Token Consumption Notification</h2>
+              <p>Hi {to_name},</p>
+              <p>This is to inform you that your device with ID <strong>{device_id}</strong> has consumed <strong>1 SCT</strong>.</p>
+              <p><strong>New Balance:</strong> {balance} SCT</p>
+              <p><strong>Transaction:</strong> 
+                <a href="{tx_link}" style="color: #2196F3; text-decoration: none;" target="_blank">
+                  View on StarkScan
+                </a>
+              </p>
+              <p>You can <a href="{site_link}" style="color: #2196F3; text-decoration: none;" target="_blank">log in</a> to your Solaris Conexus account to review full device activity and balances.</p>
+              <p>Best regards,<br>The Solaris Conexus Team</p>
+              <hr style="margin-top: 40px;">
+              <p style="font-size: 12px; color: #999;">This is an automated message. Please do not reply directly to this email.</p>
+            </div>
+          </body>
+        </html>
+        """
+
+        return self.send_email(
+            subject="SCT Token Consumed",
+            body=body,
+            to_name=to_name,
+            to_email=to_email
+        )
+
 
 # Create a singleton instance if preferred
 email_client = EmailClient()

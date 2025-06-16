@@ -20,8 +20,8 @@ class DeviceRequest(BaseModel):
 
 class TokenConsumptionRequest(BaseModel):
     device_id: constr(min_length=1, max_length=50)
-    tx_hash: constr(min_length=1, max_length=50)
-    balance: constr(min_length=1, max_length=50)
+    tx_hash: constr(min_length=5, max_length=100)
+    balance: int 
 
     class Config:
         # Allow extra fields that aren't explicitly listed in the model
