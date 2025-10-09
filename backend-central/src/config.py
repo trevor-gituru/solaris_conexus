@@ -7,6 +7,7 @@ load_dotenv()
 class Settings:
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").split(",")
     DATABASE_URL = os.getenv("DATABASE_URL")
+    REDIS_URL = os.getenv("REDIS_URL")
     FRONTEND_URL = os.getenv("FRONTEND_URL")
     SECRET_KEY = os.getenv("SECRET_KEY")
 

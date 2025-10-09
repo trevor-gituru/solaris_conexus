@@ -2,13 +2,15 @@
 
 from src.utils.sms import sms_client
 from src.utils.email import email_client
+from src.utils.whatsapp import whatsapp_client
 from src.utils.logging import logger
 
 
 class NotificationManager:
-    def __init__(self, sms_client=sms_client, email_client=email_client):
+    def __init__(self, sms_client=sms_client, email_client=email_client, whatsapp_client=whatsapp_client):
         self.sms_client = sms_client
         self.email_client = email_client
+        self.whatsapp_client = whatsapp_client
 
     def notify_trade_accepted(self, trade):
         user = trade.user
@@ -20,6 +22,14 @@ class NotificationManager:
             phone = user.profile.phone2
             status = self.sms_client.send_trade_accept(trade)
             if status == 0:
+                return
+            else:
+                return self.email_client.send_trade_accept(trade)
+
+        elif method == "whatsapp":
+            phone = user.profile.phone2
+            status = self.whatsapp_client.send_trade_accept(trade)
+            if status == 1:
                 return
             else:
                 return self.email_client.send_trade_accept(trade)

@@ -14,6 +14,7 @@ class GenderEnum(str, Enum):
 class NotificationType(str, Enum):
     sms = "sms"
     email = "email"
+    whatsapp = "whatsapp"
     none = ""
 
 class ProfileRequest(BaseModel):

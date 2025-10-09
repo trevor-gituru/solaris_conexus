@@ -60,8 +60,8 @@ class SmsClient:
         phone_number = req.get("phone")
         # Compose message
         message = (
-            f"Youre device {req.get("device_id")} has consumed 1 SCT. New token balance is {req.get("balance")} SCT."
-        f"Transaction is {req.get("tx_hash")}. Visit Solaris Conexus for details."
+            f"Youre device {req.get('device_id')} has consumed 1 SCT. New token balance is {req.get('balance')} SCT."
+        f"Transaction is {req.get('tx_hash')}. Visit Solaris Conexus for details."
         )
         recipient = ["+254" + phone_number[1:]]
         return self.sending(recipient, message)

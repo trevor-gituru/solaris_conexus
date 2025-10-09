@@ -1,0 +1,41 @@
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+.env
+.env.*
+*.env
+
+# Local development files
+*.log
+*.sqlite3
+instance/
+*.db
+
+# Git and version control
+.git/
+.gitignore
+
+# IDE and editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker files (don’t copy the image’s own build context)
+Dockerfile
+.dockerignore
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+

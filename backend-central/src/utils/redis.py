@@ -2,6 +2,7 @@
 import redis
 import json
 from decimal import Decimal
+from src.config import settings
 
 from decimal import Decimal
 from datetime import datetime
@@ -19,12 +20,7 @@ def convert_json_safe(obj):
 
 class RedisClient:
     def __init__(self):
-        self.client = redis.Redis(
-            host="localhost",   # default
-            port=6379,          # default
-            db=0,               # default
-            decode_responses=True  # so it returns strings, not bytes
-        )
+        self.client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
     def store_mpesa(self, user_id: int, data: dict, expiry: int = 3600):
         """
@@ -53,3 +49,25 @@ class RedisClient:
         self.client.delete(key)
 
 redis_client = RedisClient()
+
+# 🔹 Test connection when run directly
+if __name__ == "__main__":
+    try:
+        print(settings.REDIS_URL)
+        test_key = "test_key"
+        test_value = {"msg": "Hello from Upstash Redis!"}
+
+        # Set the key
+        redis_client.client.set(test_key, json.dumps(test_value))
+        print(f"✅ Successfully set key: {test_key}")
+
+        # Get the key
+        result = redis_client.client.get(test_key)
+        print(f"🔹 Retrieved value: {result}")
+
+        # Optional: delete it
+        redis_client.client.delete(test_key)
+        print("🧹 Test key deleted.")
+
+    except Exception as e:
+        print("❌ Redis connection failed:", e)
