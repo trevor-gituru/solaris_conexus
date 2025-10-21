@@ -1,6 +1,6 @@
-# /src/starknet/abi.py
+# /src/utils/starknet/abi.py
 
-contract_abi = [
+sct_abi = [
   {
     "type": "impl",
     "name": "SolarisConexusTokenStateImpl",
@@ -541,3 +541,4 @@ contract_abi = [
     ]
   }
 ]
+

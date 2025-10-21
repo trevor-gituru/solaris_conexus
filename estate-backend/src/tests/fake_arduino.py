@@ -4,12 +4,13 @@ import json
 import random
 
 # Use your actual virtual port here
-SERIAL_PORT = "/dev/pts/3"  # Or COM3 on Windows
+SERIAL_PORT = "/dev/pts/5"  # Or COM3 on Windows
 BAUD_RATE = 9600
 
 account_balance = 4.89
 connection_status = False
 led_state = False
+update = False
 device_id = "H001"
 current = 0.0
 battery_voltage = 3.7
@@ -24,6 +25,7 @@ def build_status_message():
     return json.dumps({
         "current": current,
         "voltage": battery_voltage,
+        "update": "true" if update else "false",
         "req": "true" if led_state else "false"
     })
 
@@ -33,7 +35,7 @@ def build_idle_message():
     })
 
 def main():
-    global current, battery_voltage, connection_status, account_balance, led_state
+    global current, battery_voltage, connection_status, account_balance, led_state, update
     ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
     print(f"Connected to {SERIAL_PORT} at {BAUD_RATE} baud.")
     
@@ -59,6 +61,8 @@ def main():
                                 connection_status = True
                             elif instruction == 2:
                                 led_state = not led_state
+                            elif instruction == 3:
+                                update = False
 
                     except Exception as e:
                         print("Error parsing serial input:", e)

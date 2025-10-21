@@ -3,7 +3,7 @@ import time
 import threading
 import serial
 
-SERIAL_PORT = '/dev/pts/6'  # Change to match your virtual serial port
+SERIAL_PORT = '/dev/pts/1'  # Change to match your virtual serial port
 BAUDRATE = 9600
 
 device_id = 'H002'
